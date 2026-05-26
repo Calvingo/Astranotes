@@ -1,0 +1,33 @@
+# Build artifacts
+target/
+*.jar
+*.class
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+.history/
+
+# Dependencies
+.classpath
+.project
+.settings/
+
+# Database
+.astraNotes/
+*.db
+
+# Temp
+*.tmp
+~*
+
+# Maven
+.m2/
+dependency-reduced-pom.xml
