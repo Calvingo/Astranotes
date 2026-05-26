@@ -270,21 +270,22 @@ public class SQLiteNoteStorage implements NoteRepository {
      */
     @Override
     public List<Note> search(String query, int offset, int limit) throws StorageException {
-        String pattern = "%" + query + "%";
+        String ftsQuery = buildFtsQuery(query);
         String sql = """
-            SELECT * FROM notes
-            WHERE deleted = 0 AND (title LIKE ? OR tags LIKE ?)
-            ORDER BY updated_at DESC
+            SELECT n.* FROM notes n
+            JOIN notes_fts f ON n.rowid = f.rowid
+            WHERE n.deleted = 0
+              AND notes_fts MATCH ?
+            ORDER BY n.updated_at DESC
             LIMIT ? OFFSET ?;
             """;
 
         List<Note> notes = new ArrayList<>();
 
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, pattern);
-            pstmt.setString(2, pattern);
-            pstmt.setInt(3, limit);
-            pstmt.setInt(4, offset);
+            pstmt.setString(1, ftsQuery);
+            pstmt.setInt(2, limit);
+            pstmt.setInt(3, offset);
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
@@ -295,6 +296,28 @@ public class SQLiteNoteStorage implements NoteRepository {
         } catch (SQLException e) {
             throw new StorageException("Search failed: " + e.getMessage(), e);
         }
+    }
+
+    private String buildFtsQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return "";
+        }
+
+        String normalized = query.replaceAll("[^\\w\\s]", " ").trim();
+        String[] tokens = normalized.split("\\s+");
+        StringBuilder builder = new StringBuilder();
+
+        for (String token : tokens) {
+            if (token.isEmpty()) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append(" OR ");
+            }
+            builder.append(token).append("*");
+        }
+
+        return builder.toString();
     }
 
     /**

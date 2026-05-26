@@ -150,9 +150,20 @@ public class SQLiteNoteStorageTest {
         storage.create("Python Notes", "Python advanced topics", List.of("python"), "work");
         storage.create("JavaScript", "JS frameworks and concepts", List.of("javascript"), "work");
 
-        List<Note> results = storage.search("java", 0, 10);
+        List<Note> results = storage.search("Java", 0, 10);
 
-        // FTS5 may return Java, JavaScript, java based on matching
-        assertFalse(results.isEmpty());
+        assertEquals(2, results.size());
+        assertTrue(results.stream().anyMatch(n -> n.getTitle().equals("Java Programming")));
+        assertTrue(results.stream().anyMatch(n -> n.getTitle().equals("JavaScript")));
+        assertEquals("Java Programming", results.get(0).getTitle());
+    }
+
+    @Test
+    public void testSearchExcludesDeletedNotes() throws StorageException {
+        String noteId = storage.create("DeleteMe", "Should not appear", List.of("temp"), "default");
+        storage.delete(noteId);
+
+        List<Note> results = storage.search("appear", 0, 10);
+        assertTrue(results.isEmpty());
     }
 }
