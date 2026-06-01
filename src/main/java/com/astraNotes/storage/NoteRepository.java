@@ -45,4 +45,15 @@ public interface NoteRepository {
      * REQ-5: Search notes efficiently
      */
     List<Note> search(String query, int offset, int limit) throws StorageException;
+
+    /**
+     * Permanently purge a soft-deleted note from storage.
+     * REQ-6: Explicit purge and deletion governance
+     */
+    boolean purge(String id) throws StorageException;
+
+    /**
+     * Permanently purge all soft-deleted notes from storage.
+     */
+    int purgeDeletedNotes() throws StorageException;
 }

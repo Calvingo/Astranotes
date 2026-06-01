@@ -1,11 +1,14 @@
 package com.astraNotes.encryption;
 
 import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
@@ -15,9 +18,13 @@ import java.util.Arrays;
  * REQ-SEC-2: Integrity checks (HMAC)
  */
 public class EncryptionManager {
-    private static final String CIPHER_ALGORITHM = "AES";
-    private static final String DIGEST_ALGORITHM = "SHA-256";
+    private static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
+    private static final String HMAC_ALGORITHM = "HmacSHA256";
+    private static final String KDF_ALGORITHM = "PBKDF2WithHmacSHA256";
     private static final int KEY_SIZE = 256;
+    private static final int ITERATIONS = 65536;
+    private static final byte[] SALT = "AstraNotesSalt".getBytes(StandardCharsets.UTF_8);
+    private static final int GCM_IV_LENGTH = 12;
 
     private SecretKey rootKey;
     private boolean unlocked;
@@ -28,15 +35,15 @@ public class EncryptionManager {
 
     /**
      * Unlock the encryption manager with a password.
-     * Derives a key from the password using PBKDF2-like approach.
+     * Derives a key from the password using PBKDF2WithHmacSHA256.
      * REQ-SEC-3: Access control (password-based unlock)
      */
     public boolean unlock(String password) {
         try {
-            byte[] salt = "AstraNotesSalt".getBytes(StandardCharsets.UTF_8);
-            byte[] passwordBytes = password.getBytes(StandardCharsets.UTF_8);
-            byte[] keyBytes = deriveKey(passwordBytes, salt, 256);
-            this.rootKey = new SecretKeySpec(keyBytes, 0, keyBytes.length, CIPHER_ALGORITHM);
+            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), SALT, ITERATIONS, KEY_SIZE);
+            SecretKeyFactory factory = SecretKeyFactory.getInstance(KDF_ALGORITHM);
+            byte[] keyBytes = factory.generateSecret(spec).getEncoded();
+            this.rootKey = new SecretKeySpec(keyBytes, "AES");
             this.unlocked = true;
             return true;
         } catch (Exception e) {
@@ -60,9 +67,16 @@ public class EncryptionManager {
             throw new EncryptionException("Encryption manager not unlocked");
         }
         try {
+            byte[] iv = new byte[GCM_IV_LENGTH];
+            new SecureRandom().nextBytes(iv);
             Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-            cipher.init(Cipher.ENCRYPT_MODE, rootKey);
-            return cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
+            GCMParameterSpec spec = new GCMParameterSpec(128, iv);
+            cipher.init(Cipher.ENCRYPT_MODE, rootKey, spec);
+            byte[] cipherText = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
+            return ByteBuffer.allocate(iv.length + cipherText.length)
+                    .put(iv)
+                    .put(cipherText)
+                    .array();
         } catch (Exception e) {
             throw new EncryptionException("Encryption failed: " + e.getMessage(), e);
         }
@@ -76,9 +90,15 @@ public class EncryptionManager {
             throw new EncryptionException("Encryption manager not unlocked");
         }
         try {
+            ByteBuffer buffer = ByteBuffer.wrap(ciphertext);
+            byte[] iv = new byte[GCM_IV_LENGTH];
+            buffer.get(iv);
+            byte[] cipherText = new byte[buffer.remaining()];
+            buffer.get(cipherText);
             Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-            cipher.init(Cipher.DECRYPT_MODE, rootKey);
-            byte[] decrypted = cipher.doFinal(ciphertext);
+            GCMParameterSpec spec = new GCMParameterSpec(128, iv);
+            cipher.init(Cipher.DECRYPT_MODE, rootKey, spec);
+            byte[] decrypted = cipher.doFinal(cipherText);
             return new String(decrypted, StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new EncryptionException("Decryption failed: " + e.getMessage(), e);
@@ -93,11 +113,13 @@ public class EncryptionManager {
             throw new EncryptionException("Encryption manager not unlocked");
         }
         try {
-            MessageDigest digest = MessageDigest.getInstance(DIGEST_ALGORITHM);
-            String combined = noteId + ":" + body;
-            digest.update(combined.getBytes(StandardCharsets.UTF_8));
-            digest.update(rootKey.getEncoded());
-            return digest.digest();
+            Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+            SecretKeySpec keySpec = new SecretKeySpec(rootKey.getEncoded(), HMAC_ALGORITHM);
+            mac.init(keySpec);
+            mac.update(noteId.getBytes(StandardCharsets.UTF_8));
+            mac.update((byte) ':');
+            mac.update(body.getBytes(StandardCharsets.UTF_8));
+            return mac.doFinal();
         } catch (Exception e) {
             throw new EncryptionException("HMAC computation failed: " + e.getMessage(), e);
         }
@@ -116,25 +138,17 @@ public class EncryptionManager {
     }
 
     /**
-     * Simple key derivation function (simplified PBKDF2-like approach).
-     * In production, use proper PBKDF2 library.
+     * Return the root key bytes as a hex string for use with SQLCipher PRAGMA key (x'...').
+     * Returns null if locked.
      */
-    private byte[] deriveKey(byte[] password, byte[] salt, int keyLength) throws Exception {
-        MessageDigest digest = MessageDigest.getInstance(DIGEST_ALGORITHM);
-        byte[] combined = new byte[password.length + salt.length];
-        System.arraycopy(password, 0, combined, 0, password.length);
-        System.arraycopy(salt, 0, combined, password.length, salt.length);
-
-        byte[] result = new byte[keyLength / 8];
-        byte[] hash = combined;
-        for (int i = 0; i < 1000; i++) {
-            digest.update(hash);
-            hash = digest.digest();
-            int copyLength = Math.min(hash.length, result.length - i * hash.length);
-            if (copyLength > 0) {
-                System.arraycopy(hash, 0, result, i * hash.length, copyLength);
-            }
+    public String getRootKeyHex() {
+        if (!unlocked || rootKey == null) return null;
+        byte[] kb = rootKey.getEncoded();
+        StringBuilder sb = new StringBuilder(kb.length * 2);
+        for (byte b : kb) {
+            sb.append(String.format("%02x", b));
         }
-        return result;
+        return sb.toString();
     }
+
 }
