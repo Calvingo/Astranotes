@@ -100,4 +100,37 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <!--
+          Optional SQLCipher profile.
+          This profile is disabled by default. To enable, pass -DuseSqlCipher=true and provide
+          the concrete coordinates for the SQLCipher-enabled JDBC driver, e.g.:
+
+          mvn clean package -Psqlcipher -DuseSqlCipher=true \
+            -Dsqlcipher.groupId=com.example -Dsqlcipher.artifactId=sqlite-jdbc-sqlcipher -Dsqlcipher.version=1.0.0
+
+          Because SQLCipher requires native libraries for each platform, pick a driver build that matches your OS/arch.
+        -->
+        <profile>
+            <id>sqlcipher</id>
+            <activation>
+                <property>
+                    <name>useSqlCipher</name>
+                </property>
+            </activation>
+            <properties>
+                <!-- set these via -D on the mvn command line -->
+                <sqlcipher.groupId>${sqlcipher.groupId}</sqlcipher.groupId>
+                <sqlcipher.artifactId>${sqlcipher.artifactId}</sqlcipher.artifactId>
+                <sqlcipher.version>${sqlcipher.version}</sqlcipher.version>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>${sqlcipher.groupId}</groupId>
+                    <artifactId>${sqlcipher.artifactId}</artifactId>
+                    <version>${sqlcipher.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>
