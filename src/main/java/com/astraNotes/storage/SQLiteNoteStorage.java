@@ -91,7 +91,8 @@ public class SQLiteNoteStorage implements NoteRepository {
                 updated_at INTEGER NOT NULL,
                 version INTEGER NOT NULL DEFAULT 1,
                 deleted BOOLEAN NOT NULL DEFAULT 0,
-                hmac BLOB
+                hmac BLOB,
+                owner_id TEXT NOT NULL DEFAULT 'demo'
             );
             """;
 
@@ -118,9 +119,21 @@ public class SQLiteNoteStorage implements NoteRepository {
             );
             """;
 
+        String createNoteSharesTable = """
+            CREATE TABLE IF NOT EXISTS note_shares (
+                note_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                PRIMARY KEY (note_id, user_id),
+                FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+            );
+            """;
+
         String createIndexes = """
             CREATE INDEX IF NOT EXISTS idx_notes_deleted ON notes(deleted);
             CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_notes_owner_id ON notes(owner_id);
+            CREATE INDEX IF NOT EXISTS idx_note_shares_user_id ON note_shares(user_id);
             """;
 
         try (Statement stmt = connection.createStatement()) {
@@ -128,6 +141,8 @@ public class SQLiteNoteStorage implements NoteRepository {
             stmt.execute(createFtsTable);
             stmt.execute(createPluginStateTable);
             stmt.execute(createSchemaVersionTable);
+            ensureOwnerColumn(stmt);
+            stmt.execute(createNoteSharesTable);
             stmt.execute(createIndexes);
             if (!schemaVersionRowExists()) {
                 insertSchemaVersion(CURRENT_SCHEMA_VERSION);
@@ -141,6 +156,16 @@ public class SQLiteNoteStorage implements NoteRepository {
                 logger.error("Rollback failed", rollbackEx);
             }
             throw new StorageException("Failed to create schema: " + e.getMessage(), e);
+        }
+    }
+
+    private void ensureOwnerColumn(Statement stmt) throws SQLException {
+        try {
+            stmt.execute("ALTER TABLE notes ADD COLUMN owner_id TEXT NOT NULL DEFAULT 'demo';");
+        } catch (SQLException e) {
+            if (!e.getMessage().toLowerCase(Locale.ROOT).contains("duplicate column name")) {
+                throw e;
+            }
         }
     }
 
@@ -195,6 +220,10 @@ public class SQLiteNoteStorage implements NoteRepository {
      */
     @Override
     public String create(String title, String body, List<String> tags, String notebook) throws StorageException {
+        return createForUser("demo", title, body, tags, notebook);
+    }
+
+    public String createForUser(String ownerId, String title, String body, List<String> tags, String notebook) throws StorageException {
         Note note = new Note(title, body, tags, notebook);
         // plugin hook: beforeCreate (may veto)
         if (pluginManager != null) {
@@ -210,8 +239,8 @@ public class SQLiteNoteStorage implements NoteRepository {
             note.setHmac(hmac);
 
             String insertNotesSql = """
-                INSERT INTO notes (id, title, body, tags, notebook, created_at, updated_at, version, deleted, hmac)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                INSERT INTO notes (id, title, body, tags, notebook, created_at, updated_at, version, deleted, hmac, owner_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """;
 
             try (PreparedStatement pstmt = connection.prepareStatement(insertNotesSql)) {
@@ -225,6 +254,7 @@ public class SQLiteNoteStorage implements NoteRepository {
                 pstmt.setInt(8, note.getVersion());
                 pstmt.setBoolean(9, note.isDeleted());
                 pstmt.setBytes(10, hmac);
+                pstmt.setString(11, ownerId);
                 pstmt.executeUpdate();
             }
 
@@ -279,19 +309,60 @@ public class SQLiteNoteStorage implements NoteRepository {
         }
     }
 
+    public Optional<Note> getForUser(String userId, String id) throws StorageException {
+        String sql = """
+            SELECT n.* FROM notes n
+            LEFT JOIN note_shares s ON n.id = s.note_id AND s.user_id = ?
+            WHERE n.id = ?
+              AND n.deleted = 0
+              AND (n.owner_id = ? OR s.user_id IS NOT NULL);
+            """;
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            pstmt.setString(2, id);
+            pstmt.setString(3, userId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return Optional.of(reconstructNote(rs));
+            }
+            return Optional.empty();
+        } catch (StorageException e) {
+            throw e;
+        } catch (SQLException e) {
+            throw new StorageException("Failed to retrieve note for user: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean isOwner(String userId, String noteId) throws StorageException {
+        String sql = "SELECT COUNT(*) FROM notes WHERE id = ? AND owner_id = ? AND deleted = 0;";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, noteId);
+            pstmt.setString(2, userId);
+            ResultSet rs = pstmt.executeQuery();
+            return rs.next() && rs.getInt(1) > 0;
+        } catch (SQLException e) {
+            throw new StorageException("Failed to check note owner: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * Update an existing note's content.
      * REQ-3: Update note with versioning
      */
     @Override
     public boolean update(String id, String title, String body, List<String> tags) throws StorageException {
+        return updateForOwner("demo", id, title, body, tags);
+    }
+
+    public boolean updateForOwner(String ownerId, String id, String title, String body, List<String> tags) throws StorageException {
         try {
             byte[] encryptedBody = encryptionManager.encrypt(body);
             byte[] hmac = encryptionManager.computeHMAC(id, body);
 
             String updateSql = """
                 UPDATE notes SET title = ?, body = ?, tags = ?, updated_at = ?, version = version + 1, hmac = ?
-                WHERE id = ? AND deleted = 0;
+                WHERE id = ? AND owner_id = ? AND deleted = 0;
                 """;
 
             try (PreparedStatement pstmt = connection.prepareStatement(updateSql)) {
@@ -301,6 +372,7 @@ public class SQLiteNoteStorage implements NoteRepository {
                 pstmt.setLong(4, Instant.now().getEpochSecond());
                 pstmt.setBytes(5, hmac);
                 pstmt.setString(6, id);
+                pstmt.setString(7, ownerId);
                 int rowsAffected = pstmt.executeUpdate();
 
                 // Update FTS index
@@ -344,6 +416,10 @@ public class SQLiteNoteStorage implements NoteRepository {
      */
     @Override
     public boolean delete(String id) throws StorageException {
+        return deleteForOwner("demo", id);
+    }
+
+    public boolean deleteForOwner(String ownerId, String id) throws StorageException {
         // plugin hook: allow veto
         if (pluginManager != null) {
             boolean ok = pluginManager.notifyBeforeDelete(id);
@@ -352,11 +428,12 @@ public class SQLiteNoteStorage implements NoteRepository {
             }
         }
 
-        String deleteSql = "UPDATE notes SET deleted = 1, updated_at = ? WHERE id = ?;";
+        String deleteSql = "UPDATE notes SET deleted = 1, updated_at = ? WHERE id = ? AND owner_id = ?;";
 
         try (PreparedStatement pstmt = connection.prepareStatement(deleteSql)) {
             pstmt.setLong(1, Instant.now().getEpochSecond());
             pstmt.setString(2, id);
+            pstmt.setString(3, ownerId);
             int rowsAffected = pstmt.executeUpdate();
             connection.commit();
             logger.info("Note soft-deleted: {}", id);
@@ -398,6 +475,36 @@ public class SQLiteNoteStorage implements NoteRepository {
         }
     }
 
+    public List<Note> listForUser(String userId, int offset, int limit) throws StorageException {
+        String sql = """
+            SELECT DISTINCT n.* FROM notes n
+            LEFT JOIN note_shares s ON n.id = s.note_id AND s.user_id = ?
+            WHERE n.deleted = 0
+              AND (n.owner_id = ? OR s.user_id IS NOT NULL)
+            ORDER BY n.updated_at DESC
+            LIMIT ? OFFSET ?;
+            """;
+        List<Note> notes = new ArrayList<>();
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, userId);
+            pstmt.setString(2, userId);
+            pstmt.setInt(3, limit);
+            pstmt.setInt(4, offset);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                try {
+                    notes.add(reconstructNote(rs));
+                } catch (StorageException ignored) {
+                    logger.warn("Skipping note with invalid integrity during user list retrieval: {}", rs.getString("id"));
+                }
+            }
+            return notes;
+        } catch (SQLException e) {
+            throw new StorageException("Failed to list notes for user: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * Search notes by title, body, or tags.
      * Uses LIKE pattern matching on indexed columns for efficiency.
@@ -405,6 +512,10 @@ public class SQLiteNoteStorage implements NoteRepository {
      */
     @Override
     public List<Note> search(String query, int offset, int limit) throws StorageException {
+        return searchForUser("demo", query, offset, limit);
+    }
+
+    public List<Note> searchForUser(String userId, String query, int offset, int limit) throws StorageException {
         // allow plugins to modify query
         String q = query;
         if (pluginManager != null) {
@@ -414,7 +525,9 @@ public class SQLiteNoteStorage implements NoteRepository {
         String sql = """
             SELECT n.* FROM notes n
             JOIN notes_fts f ON n.rowid = f.rowid
+            LEFT JOIN note_shares s ON n.id = s.note_id AND s.user_id = ?
             WHERE n.deleted = 0
+              AND (n.owner_id = ? OR s.user_id IS NOT NULL)
               AND notes_fts MATCH ?
             ORDER BY n.updated_at DESC
             LIMIT ? OFFSET ?;
@@ -423,9 +536,11 @@ public class SQLiteNoteStorage implements NoteRepository {
         List<Note> notes = new ArrayList<>();
 
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, ftsQuery);
-            pstmt.setInt(2, limit);
-            pstmt.setInt(3, offset);
+            pstmt.setString(1, userId);
+            pstmt.setString(2, userId);
+            pstmt.setString(3, ftsQuery);
+            pstmt.setInt(4, limit);
+            pstmt.setInt(5, offset);
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
@@ -439,6 +554,61 @@ public class SQLiteNoteStorage implements NoteRepository {
             return notes;
         } catch (SQLException e) {
             throw new StorageException("Search failed: " + e.getMessage(), e);
+        }
+    }
+
+    public void shareWithUser(String ownerId, String noteId, String targetUserId) throws StorageException {
+        if (!isOwner(ownerId, noteId)) {
+            throw new StorageException("Only the note owner can share this note");
+        }
+        if (ownerId.equals(targetUserId)) {
+            throw new StorageException("Cannot share a note with its owner");
+        }
+        String sql = "INSERT OR IGNORE INTO note_shares (note_id, user_id, created_at) VALUES (?, ?, ?);";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, noteId);
+            pstmt.setString(2, targetUserId);
+            pstmt.setLong(3, Instant.now().getEpochSecond());
+            pstmt.executeUpdate();
+            connection.commit();
+            logger.info("Note shared: {} -> {}", noteId, targetUserId);
+        } catch (SQLException e) {
+            try { connection.rollback(); } catch (SQLException rollbackEx) { logger.error("Rollback failed", rollbackEx); }
+            throw new StorageException("Failed to share note: " + e.getMessage(), e);
+        }
+    }
+
+    public void removeShare(String ownerId, String noteId, String targetUserId) throws StorageException {
+        if (!isOwner(ownerId, noteId)) {
+            throw new StorageException("Only the note owner can change sharing");
+        }
+        String sql = "DELETE FROM note_shares WHERE note_id = ? AND user_id = ?;";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, noteId);
+            pstmt.setString(2, targetUserId);
+            pstmt.executeUpdate();
+            connection.commit();
+        } catch (SQLException e) {
+            try { connection.rollback(); } catch (SQLException rollbackEx) { logger.error("Rollback failed", rollbackEx); }
+            throw new StorageException("Failed to remove note share: " + e.getMessage(), e);
+        }
+    }
+
+    public List<String> listSharedUsers(String ownerId, String noteId) throws StorageException {
+        if (!isOwner(ownerId, noteId)) {
+            return List.of();
+        }
+        String sql = "SELECT user_id FROM note_shares WHERE note_id = ? ORDER BY user_id;";
+        List<String> users = new ArrayList<>();
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, noteId);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                users.add(rs.getString("user_id"));
+            }
+            return users;
+        } catch (SQLException e) {
+            throw new StorageException("Failed to list note shares: " + e.getMessage(), e);
         }
     }
 

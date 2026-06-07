@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${noteId == null} ? 'New Note - AstraNotes' : 'Edit Note - AstraNotes'">AstraNotes</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="center-shell">
+    <header class="topbar">
+        <a th:href="@{/notes}" class="back-link">Back to notes</a>
+        <div>
+            <h1 th:text="${noteId == null} ? 'New note' : 'Edit note'">New note</h1>
+            <p>
+                <span>Signed in as </span>
+                <strong th:text="${currentUser.displayName}">Demo User</strong>
+            </p>
+        </div>
+    </header>
+
+    <div th:if="${error}" class="banner error" th:text="${error}"></div>
+
+    <form class="note-form"
+          th:action="${noteId == null} ? @{/notes} : @{/notes/{id}(id=${noteId})}"
+          th:object="${noteForm}"
+          method="post">
+        <label>
+            <span>Title</span>
+            <input type="text" th:field="*{title}" maxlength="120" required autofocus>
+        </label>
+
+        <label>
+            <span>Notebook</span>
+            <input type="text" th:field="*{notebook}" placeholder="default">
+        </label>
+
+        <label>
+            <span>Tags</span>
+            <input type="text" th:field="*{tags}" placeholder="project, class, exam">
+        </label>
+
+        <label>
+            <span>Body</span>
+            <textarea th:field="*{body}" rows="16" placeholder="Write markdown-style notes here"></textarea>
+        </label>
+
+        <div class="form-actions">
+            <a class="button secondary" th:href="@{/notes}">Cancel</a>
+            <button class="button primary" type="submit" th:text="${noteId == null} ? 'Create note' : 'Save changes'">Save</button>
+        </div>
+    </form>
+</div>
+</body>
+</html>

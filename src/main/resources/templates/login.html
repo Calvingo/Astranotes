@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - AstraNotes</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="login-shell">
+    <section class="login-panel">
+        <div class="brand login-brand">
+            <div class="brand-mark">A</div>
+            <div>
+                <h1>AstraNotes</h1>
+                <p>Multi-user web demo</p>
+            </div>
+        </div>
+
+        <div th:if="${error}" class="banner error" th:text="${error}"></div>
+
+        <form class="note-form login-form" th:action="@{/login}" method="post">
+            <label>
+                <span>User</span>
+                <select name="userId" required>
+                    <option th:each="user : ${users}" th:value="${user.id}" th:text="${user.displayName + ' (' + user.id + ')'}">Demo User</option>
+                </select>
+            </label>
+
+            <label>
+                <span>Password</span>
+                <input type="password" name="password" placeholder="alex123 / morgan123 / taylor123" required>
+            </label>
+
+            <button class="button primary" type="submit">Sign in</button>
+        </form>
+
+        <div class="demo-credentials">
+            <strong>Demo users</strong>
+            <span>alex / alex123</span>
+            <span>morgan / morgan123</span>
+            <span>taylor / taylor123</span>
+        </div>
+    </section>
+</div>
+</body>
+</html>

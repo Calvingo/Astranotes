@@ -1,72 +1,106 @@
-# AstraNotes - Week 6 Development
+# AstraNotes Web Demo
 
-Secure offline-first markdown note-taking application built with Java + SQLite + AES encryption.
+AstraNotes is now a runnable Spring Boot web application for a secure note-taking demo. It keeps the original SQLite, AES/GCM encryption, HMAC integrity, FTS search, export/import, and JUnit test foundation, then adds a browser-based notes workspace.
 
 ## Quick Start
 
 ```bash
-# Build
-mvn clean package
-
-# Run
-java -jar target/astraNotes-0.1.0.jar
+mvn test
+mvn spring-boot:run
 ```
 
-## Documentation
+Open:
 
-- **[WEEK6_QUICKSTART.md](WEEK6_QUICKSTART.md)** ← Start here!
-- **[SUBMISSION_WEEK6.md](SUBMISSION_WEEK6.md)** ← Full submission report
-- **[BUILD_AND_RUN.md](BUILD_AND_RUN.md)** ← Detailed build guide
-- **[DELIVERABLES.md](DELIVERABLES.md)** ← Checklist of requirements
+```text
+http://127.0.0.1:8080/notes
+```
 
-## What's Included
+## Demo Flow
 
-✓ Core CRUD operations (Create, Read, Update, Delete notes)  
-✓ AES-256 encryption with HMAC integrity checks  
-✓ SQLite database with FTS5 full-text search  
-✓ Swing GUI with menu, sidebar, detail view  
-✓ Maven build system with automated testing  
-✓ 10 passing tests covering both main slices  
-✓ Comprehensive documentation and traceability  
+1. Open the login page and sign in as a demo user.
+2. Create a note with title, body, tags, and notebook.
+3. Search note content.
+4. Open and edit the note as the owner.
+5. Share the note with another demo user.
+6. Sign in as the shared user and confirm read-only access.
+7. Delete the note as the owner.
+8. Visit Profile and Settings.
+9. Export or import an AstraNotes JSON bundle from Settings.
+
+## Demo Users
+
+| User | Password | Role |
+|---|---|---|
+| `alex` | `alex123` | Can create, edit, delete, and share owned notes |
+| `morgan` | `morgan123` | Can receive shared notes |
+| `taylor` | `taylor123` | Can receive shared notes |
+
+## What Is Implemented
+
+- Spring Boot web app entry point
+- Thymeleaf browser UI
+- Notes workspace with list, detail, search, create, edit, and delete
+- Demo login and server-side session handling
+- Per-user note ownership
+- Owner-only edit/delete
+- Read-only sharing with other demo users
+- Profile demo page
+- Settings page with encryption status
+- Export all active notes as JSON
+- Import AstraNotes JSON bundles
+- SQLite persistence
+- AES/GCM note-body encryption
+- HMAC integrity verification
+- FTS5-backed search
+- Service-layer validation for note titles, body size, tags, and notebook defaults
+- Maven test and package workflow
+
+## Current Test Coverage
+
+The project includes storage, model, integration, performance, and web service tests.
+
+```bash
+mvn test
+```
 
 ## Project Structure
 
+```text
+src/main/java/com/astraNotes/
+├── encryption/     # AES/GCM and HMAC support
+├── io/             # export/import support
+├── model/          # Note domain model
+├── plugin/         # trusted plugin hooks/state
+├── storage/        # SQLite repository
+├── ui/             # older Swing prototype retained
+└── web/            # Spring Boot web app, controller, DTOs, service
+
+src/main/resources/
+├── application.properties
+├── static/css/app.css
+└── templates/      # Thymeleaf pages
 ```
-├── pom.xml                          # Maven configuration
-├── src/main/java/com/astraNotes/    # Main source code
-│   ├── model/                       # Domain models
-│   ├── storage/                     # Database layer
-│   ├── encryption/                  # Encryption logic
-│   └── ui/                          # Swing GUI components
-├── src/test/java/com/astraNotes/    # Unit + integration tests
-└── planning/                        # Requirements and UML
+
+## Configuration
+
+Default demo database:
+
+```text
+./data/web-notes.db
 ```
 
-## Technology Stack
+Default demo unlock password:
 
-- **Language**: Java 15+
-- **Build**: Maven 3.6+
-- **Database**: SQLite with FTS5
-- **Encryption**: Bouncy Castle (AES-256)
-- **UI**: Swing
-- **Testing**: JUnit
+```text
+ASTRANOTES_DEMO_PASSWORD=astraNotes-demo-123
+```
 
-## Features Implemented
+For a different demo password:
 
-| Feature | Status | Test Coverage |
-|---------|--------|---|
-| Create note (encrypt + store) | ✓ Complete | testCreateNote |
-| Retrieve note (decrypt + display) | ✓ Complete | testReadNote |
-| List notes (paginated) | ✓ Complete | testCreateAndList |
-| Update note (versioning) | ✓ Complete | testUpdateNote |
-| Delete note (soft-delete) | ✓ Complete | testSoftDelete |
-| Search (FTS5 index) | ✓ Schema ready | testSearch |
+```bash
+ASTRANOTES_DEMO_PASSWORD="your-demo-password" mvn spring-boot:run
+```
 
-## Next Steps
+## Known Limits
 
-- Week 7: Performance testing, plugin system, export/import
-- See [SUBMISSION_WEEK6.md](SUBMISSION_WEEK6.md) for detailed roadmap
-
----
-
-For detailed setup, build, and run instructions, see **[BUILD_AND_RUN.md](BUILD_AND_RUN.md)**.
+This is a class-demo web application, not a production release. Real multi-user authentication, note ownership, sharing permissions, and hosted deployment are still future work.

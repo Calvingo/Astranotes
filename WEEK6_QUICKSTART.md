@@ -63,7 +63,7 @@ Or from IDE (VS Code):
 |-----------|---------|--------|
 | Note Model | Domain object (title, body, tags, version, encryption) | ✓ Complete |
 | SQLiteNoteStorage | Database layer with AES encryption | ✓ Complete |
-| EncryptionManager | AES-256 + HMAC for security | ✓ Complete |
+| EncryptionManager | AES-GCM + HMAC for security | ✓ Complete |
 | NoteCreateDialog | UI for creating notes | ✓ Complete |
 | NoteListPanel | Sidebar with note list | ✓ Complete |
 | NoteDetailPanel | Note display panel | ✓ Complete |
@@ -76,7 +76,7 @@ Or from IDE (VS Code):
 ✓ **REQ-3**: Update note (version + timestamp tracking)  
 ✓ **REQ-4**: Delete note (soft-delete, can recover)  
 ✓ **REQ-6**: Offline operation (SQLite local-only)  
-✓ **REQ-SEC-1**: Encryption at rest (AES-256)  
+✓ **REQ-SEC-1**: Encryption at rest (AES-GCM note-body encryption)  
 ✓ **REQ-SEC-2**: Integrity checks (HMAC-SHA256)  
 ✓ **REQ-SEC-3**: Access control (password unlock)  
 ✓ **REQ-SEC-4**: ACID transactions (SQLite + explicit commits)  
@@ -86,7 +86,7 @@ Or from IDE (VS Code):
 ✗ **REQ-5**: Full-text search (FTS5 schema ready, query optimization pending)  
 ✗ **REQ-7**: Plugin hooks (interface defined, lifecycle not wired)  
 ✗ **REQ-8**: Export/import (structure ready, UI not built)  
-✗ **REQ-SEC-5**: Schema versioning (MigrationManager skeleton)  
+✓ **GOV-1**: Schema versioning table present; multi-version migration scripts are future work  
 
 ---
 
@@ -151,7 +151,7 @@ mvn test -Dtest=SQLiteNoteStorageTest
 **Location**: `~/.astraNotes/notes.db` (SQLite)  
 **Auto-created**: On first launch  
 **Schema**: Notes table + FTS5 full-text index  
-**Encryption**: AES-256 per-note body  
+**Encryption**: AES-GCM per-note body  
 
 ### Inspect Database
 
@@ -231,4 +231,3 @@ mvn clean compile
 ## Questions?
 
 See [SUBMISSION_WEEK6.md](SUBMISSION_WEEK6.md) section "How to Evaluate This Submission" for review guidance.
-

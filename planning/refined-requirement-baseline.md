@@ -1,148 +1,176 @@
 # AstraNotes Refined Requirement Baseline
 
+This baseline refines the Week 1.2 requirements and Week 2.2 stories into clearer, testable requirements for AstraNotes. The goal is not to add scope; it is to remove ambiguity, expose edge cases, and make the current project direction defensible.
+
 ## Refined Requirement Baseline
 
 ### Functional Requirements
 
-1. **Create note**
-   - The app must allow users to create a markdown note with title, body, tags, and notebook.
-   - The note must be saved in the encrypted SQLite database and return a unique note ID.
-   - The saved note must include `createdAt`, `updatedAt`, `version`, and `deleted` metadata.
+#### FR-1: Create Note
+- The system shall allow a user to create a markdown note with title, body, tags, and notebook.
+- The system shall generate a unique note ID.
+- The system shall store the note locally in SQLite.
+- The system shall initialize `createdAt`, `updatedAt`, `version=1`, and `deleted=false`.
+- The system shall encrypt protected note body content before writing it to disk.
 
-2. **Read note by ID**
-   - The app must retrieve a note by its unique ID and return decrypted body and metadata.
-   - If the note is soft-deleted, the normal read API must return not found.
+Acceptance checks:
+- Creating a valid note returns a non-empty unique ID.
+- The saved note can be read back with matching title, body, tags, and notebook.
+- The stored body is not written as plain text.
 
-3. **Update note**
-   - Users must be able to edit an existing note's title, body, tags, and notebook.
-   - The note update must occur in a transaction, increment `version`, and update `updatedAt`.
+#### FR-2: Read Note
+- The system shall retrieve a note by ID and return decrypted body content and metadata.
+- The system shall verify note integrity before returning the note.
+- The system shall not return soft-deleted notes through normal read operations.
 
-4. **Soft delete note**
-   - The app must mark a note as deleted without physically removing it from the database.
-   - Soft-deleted notes must be excluded from search and list results.
+Acceptance checks:
+- A valid active note ID returns the expected note.
+- A missing or deleted note ID returns not found.
+- A tampered note fails integrity validation instead of returning corrupted content.
 
-5. **Search notes**
-   - The app must support full-text search on title, body, and tags using FTS5.
-   - Search results must be ordered by `updatedAt` desc and support pagination.
+#### FR-3: Update Note
+- The system shall allow a user to update an existing note's title, body, tags, and notebook.
+- The system shall perform the update in a transaction.
+- The system shall increment `version`, update `updatedAt`, re-encrypt the note body, and refresh the integrity check.
 
-6. **Offline operation**
-   - All CRUD and search operations must function without network connectivity.
-   - The app must not require any remote service for basic note workflows.
+Acceptance checks:
+- Updating an active note returns success.
+- The new content persists after reload.
+- The version increases by one.
+- A failed update does not partially change the stored note.
 
-7. **Plugin lifecycle hooks**
-   - Trusted plugins must be able to receive `beforeCreate`, `afterUpdate`, `beforeDelete`, and `onSearch` events.
-   - Plugin state must be stored separately from core note data.
+#### FR-4: Delete and Purge Note
+- The system shall support soft delete by marking a note as deleted.
+- Soft-deleted notes shall be excluded from read, list, and search operations.
+- The system shall support explicit purge to permanently remove deleted notes.
 
-8. **Export/import notes**
-   - The app must support exporting notes to a file bundle and importing them back.
-   - Import must reconstruct notes into the encrypted SQLite database with metadata intact.
+Acceptance checks:
+- A deleted note no longer appears in normal workflows.
+- Purge removes a deleted note from the database.
+- Purge is separate from normal delete.
 
-### Non-functional Requirements
+#### FR-5: Search Notes
+- The system shall support full-text search over note title, body snippet, tags, and notebook.
+- Search shall support pagination.
+- Search shall order results by most recently updated notes first.
+- Search shall exclude deleted notes.
 
-1. **Performance**
-   - Search/list queries should return results in under 150ms for a 10k-note dataset on typical desktop hardware.
+Acceptance checks:
+- Searching a matching title, body term, or tag returns expected notes.
+- Searching a deleted note's content returns no result.
+- Search supports offset and limit.
 
-2. **Scalability**
-   - The app should support 100k notes with acceptable query performance, stable memory usage, and a manageable database footprint.
+#### FR-6: Offline Operation
+- The system shall support create, read, update, delete, list, and search without network connectivity.
+- The system shall use local SQLite storage as the source of truth.
+- The system shall not require a remote account, remote API, or cloud service for core workflows.
 
-3. **Cross-platform**
-   - The app must function on macOS, Windows, and Linux with consistent behavior and secure local storage.
+Acceptance checks:
+- Core CRUD and search work while disconnected.
+- The application does not block startup or note operations on network checks.
 
-4. **Maintainability**
-   - Code should separate storage, encryption, plugin, and UI layers.
-   - Public APIs and decisions must be documented.
+#### FR-7: Trusted Plugin Hooks
+- The system shall expose trusted plugin hooks for `beforeCreate`, `afterUpdate`, `beforeDelete`, and `onSearch`.
+- Plugin state shall be stored separately from core note rows.
+- Plugin failures shall be logged and handled without corrupting core storage.
 
-### Security / Privacy / Reliability / Governance Requirements
+Acceptance checks:
+- Registered plugins receive the expected lifecycle event.
+- A plugin can veto supported operations where the hook allows it.
+- Plugin state persists separately from note data.
 
-1. **Encryption at rest**
-   - The SQLite database must be encrypted using SQLCipher or a secure equivalent.
+#### FR-8: Export and Import Notes
+- The system shall export selected notes to a versioned file bundle.
+- The bundle shall include enough metadata to reconstruct notes.
+- The bundle shall include an integrity check such as a checksum.
+- The import process shall verify bundle integrity before writing notes.
+- Import shall handle duplicate note IDs by preserving IDs only when safe or creating new IDs when requested.
 
-2. **Integrity checks**
-   - Each note record must include an integrity validation mechanism, such as HMAC.
+Acceptance checks:
+- Export creates a readable bundle file with a format version.
+- Import into a fresh database reconstructs the exported note.
+- A modified bundle with a bad checksum is rejected.
 
-3. **Access control**
-   - A password or unlock key must be required to open encrypted note data.
+### Non-Functional Requirements
 
-4. **ACID reliability**
-   - All write operations must use SQLite transactions to prevent partial or inconsistent state.
+#### NFR-1: Performance
+- Search and list operations should return within 150ms for a 10k-note dataset on typical desktop hardware.
+- Performance claims must be supported by a repeatable benchmark or test.
 
-5. **Schema governance**
-   - Schema versioning and migration scripts must be tracked, documented, and applied automatically.
+#### NFR-2: Scalability
+- The design should support growth toward 100k notes without unbounded memory usage.
+- Large result sets must be paginated rather than loaded all at once.
 
-6. **Deletion governance**
-   - Deleted notes must be tombstoned and only permanently removed via explicit purge.
-   - No unencrypted note content should remain on disk after purge.
+#### NFR-3: Cross-Platform Operation
+- The application should run on macOS, Windows, and Linux with Java 17 and Maven.
+- Local storage paths should be configurable or derived from the user's home/app data location rather than hardcoded to one machine.
 
-## Ambiguity Review
+#### NFR-4: Maintainability
+- Storage, encryption, plugin, import/export, and UI responsibilities should remain separated.
+- Public APIs and important architecture decisions should be documented.
+- Tests should cover public behavior, not only implementation details.
 
-### Ambiguous items identified
-1. **"Safe export/import"**
-   - Previously vague: does it mean encrypted export, plaintext export, or both?
-   - Refined to: export bundle format plus explicit import path back into encrypted DB.
+### Security, Privacy, Reliability, and Governance Requirements
 
-2. **"Trusted plugins"**
-   - Originally ambiguous on permission boundaries.
-   - Clarified as plugins with explicit event hooks and separate plugin state storage, not arbitrary file access.
+#### SEC-1: Encryption at Rest
+- Protected note body content shall be encrypted at rest.
+- The current course implementation may use application-level AES-GCM for note bodies, with SQLCipher documented as an optional whole-database hardening path.
+- If whole-database encryption is required later, SQLCipher or an equivalent driver must be enabled and documented.
 
-3. **"Offline operation"**
-   - Ambiguous whether only CRUD or also plugin and export/import should work offline.
-   - Refined to require CRUD and search offline, and to not depend on remote services.
+#### SEC-2: Integrity Verification
+- Each stored note shall include an integrity validation mechanism, such as HMAC.
+- The system shall verify integrity before returning decrypted note content.
 
-4. **"Manageable DB size"**
-   - Subjective phrase.
-   - Refined to support 100k notes without unacceptable query performance or memory usage.
+#### SEC-3: Access Control
+- The encryption manager shall require an unlock secret before encrypting or decrypting note content.
+- A failed unlock shall not expose note content.
+- Demo passwords must be documented as demo-only and not treated as production-ready access control.
 
-### Weak assumptions
-1. Assuming all users can tolerate a single SQLite DB on all platforms.
-   - This is valid for desktop MVP but should be explicit as a design choice.
-2. Assuming FTS5 search is sufficient for all note content.
-   - Acceptable now, but we must note that larger attachments or external indexing are out of scope.
-3. Assuming plugin hooks are safe because plugins are trusted.
-   - Needs explicit governance: trusted means audited, not sandboxed.
+#### REL-1: ACID Reliability
+- All write operations shall use SQLite transactions to prevent partial state.
+- Failed writes shall roll back or fail without leaving inconsistent note and search index state.
 
-## Edge-case Review
+#### GOV-1: Schema Governance
+- Schema versioning shall be tracked in the database.
+- Schema changes shall be documented in `plans/DECISIONS.md` or a migration note.
+- Migration failure behavior shall be explicit.
 
-### Missing edge cases added
-1. **Empty note title or body**
-   - Requirement should allow empty body, but title may be optional or required. Clarified to support both with explicit validation rules.
+#### GOV-2: Deletion Governance
+- Soft delete and purge shall be separate actions.
+- Deleted notes shall remain hidden from normal workflows until purged.
+- Purge behavior shall be documented so the student can explain what data remains and what is removed.
 
-2. **Maximum size limits**
-   - Notes should have a practical max body size (e.g. 1MB) to keep performance and storage predictable.
+## Ambiguity and Edge-Case Review
 
-3. **Duplicate IDs on import**
-   - Import must handle existing note IDs gracefully (e.g. merge, skip, or create new ID).
+| Earlier wording or assumption | Problem | Refined rule |
+| --- | --- | --- |
+| "Safe export/import" | Safe could mean encrypted, checksummed, compatible, or simply successful. | Export bundles must be versioned, include metadata, and verify checksum before import. |
+| "Encrypted SQLite database" | This sounded like mandatory SQLCipher, but the current implementation uses note-body AES-GCM with optional SQLCipher. | Protected note content must be encrypted now; whole-database SQLCipher is a documented optional hardening path unless required by the final rubric. |
+| "Trusted plugins" | Trusted did not define boundaries or failure behavior. | Plugins receive named lifecycle hooks, store state separately, and cannot be allowed to corrupt core storage. |
+| "Offline operation" | It was unclear whether this applied only to CRUD or every workflow. | Core CRUD, list, and search must work without remote services; plugin/network-dependent extras are outside the core guarantee. |
+| "Manageable DB size" | Subjective and hard to test. | Growth toward 100k notes should use pagination and avoid unbounded memory usage. |
 
-4. **Deleted note read attempts**
-   - Clarified that soft-deleted notes are not returned by normal read/list/search.
+### Edge cases now explicitly covered
+- Empty body is allowed, but title validation must be explicit.
+- Very large note bodies need a documented practical limit or performance risk.
+- Duplicate IDs during import must be handled by preserving, skipping, or generating new IDs intentionally.
+- Deleted notes must not appear in read, list, or search.
+- Wrong unlock secret must fail without exposing note content.
+- Tampered encrypted content or HMAC must fail integrity validation.
+- Migration failure must fail safely and be explainable.
+- Plugin exceptions must be handled without corrupting notes.
+- Search with punctuation, empty queries, or deleted-note matches must behave predictably.
 
-5. **Database unlock failure**
-   - If the encryption key is wrong or missing, the app must fail gracefully and not expose data.
+## Functional vs Non-Functional Separation
 
-6. **Migration failure**
-   - Schema migration must fail safely with a clear rollback or recovery path.
+Functional requirements describe what AstraNotes does: create, read, update, delete, search, operate offline, notify plugins, and export/import notes.
 
-7. **Plugin error handling**
-   - A faulty plugin must not crash core note operations.
+Non-functional requirements describe quality constraints: performance, scalability, cross-platform behavior, maintainability, security posture, reliability, and governance. The refined baseline keeps these separate so implementation tasks do not confuse a feature with a quality target.
 
-8. **Export/import data integrity**
-   - Exported bundles must include a version or checksum to validate import.
+## Knight Capital Lesson Applied
 
-## Functional vs Non-functional Notes
+The Knight Capital case shows why hidden assumptions and weak operational discipline matter. For AstraNotes, the equivalent risks are smaller but still real: unclear encryption expectations, vague migration behavior, and untested import or plugin assumptions could create data loss or privacy failures. This baseline reduces that risk by turning vague statements into testable rules and by requiring decisions, edge cases, and failure modes to be documented before implementation moves forward.
 
-- **Functional requirements** describe what the system does:
-  - create/read/update/delete notes
-  - search notes
-  - export/import notes
-  - plugin lifecycle events
-  - offline operation
+## AI Refinement Note
 
-- **Non-functional requirements** describe how well the system does it:
-  - performance under load
-  - scalability to 100k notes
-  - cross-platform behavior
-  - maintainability of architecture
-  - security and governance constraints
-
-## AI refinement note
-
-AI helped by generating the first draft of requirements, user stories, acceptance criteria, and governance structure. I then refined that output by removing generic Agile language, making assumptions explicit, and converting vague statements into measurable requirements. I rejected AI output that lacked edge-case coverage or clear separation between functional and non-functional requirements, and I strengthened the baseline by adding explicit failure modes for export/import, migration, plugin errors, and encryption unlock.
+AI was used as a critic rather than only a drafting tool. I used it to ask where my earlier requirements were vague, which requirements were functional versus non-functional, what edge cases were missing, and what assumptions were implied but not written down. I accepted suggestions that made requirements more measurable, such as checksum validation for import and explicit handling of deleted-note reads. I rejected or revised generic suggestions that did not fit AstraNotes, especially broad security language that did not distinguish the current AES-GCM implementation from optional SQLCipher hardening.

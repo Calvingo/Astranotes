@@ -26,7 +26,7 @@
 ## 2) How Work is Planned & Tracked
 
 ### Backlog organization
-- **Location**: `plans/BACKLOG.md` (living document, not Jira)
+- **Location**: `planning/backlog.md` (living document, not Jira)
 - **Format**: 
   ```
   ## Sprint N (dates)
@@ -110,8 +110,8 @@
 1. **Plans** (`plans/` folder)
    - `plan-astraNotes.prompt.md` — architecture decisions (updated weekly)
    - `WORKING-AGREEMENT.md` — this file (governance + process)
-   - `BACKLOG.md` — current sprint + roadmap
-   - `DECISIONS.md` — why we chose Option A (SQLite), not B or C (with date + rationale)
+   - `planning/backlog.md` — current sprint + roadmap
+   - `plans/DECISIONS.md` — why we chose Option A (SQLite), not B or C (with date + rationale)
 
 2. **Code** (`src/` folder)
    - Every class: javadoc with "why" not just "what"
@@ -128,16 +128,16 @@
      test: Add 10k-note performance benchmark — NFR1 baseline
      ```
 
-### Decision log (DECISIONS.md)
+### Decision log (`plans/DECISIONS.md`)
 ```
-## Decision: Use SQLCipher, not app-level encryption
-**Date**: 2026-04-01
-**Context**: Needed DB encryption + per-note integrity
-**Options**: A=SQLCipher, B=app-level field encryption, C=separate vault file
-**Choice**: A (SQLCipher)
-**Reasoning**: Single ACID transaction boundary, less code surface, transparent to queries
-**Trade-offs**: Tied to SQLite; harder to migrate keys later
-**Status**: ACCEPTED; supersedes earlier "app-level" design
+## Decision: Use application-level AES-GCM while SQLCipher remains optional
+**Date**: 2026-06-06
+**Context**: Needed testable encryption and integrity checks for the current course build
+**Options**: A=SQLCipher-only, B=app-level AES-GCM + optional SQLCipher, C=no encryption
+**Choice**: B
+**Reasoning**: Gives the project working encryption now while leaving SQLCipher as a future hardening path
+**Trade-offs**: Metadata may remain visible unless SQLCipher is enabled
+**Status**: ACCEPTED for current implementation; revisit if final requirements require full DB encryption
 ```
 
 ### Revision log (in files)
@@ -178,7 +178,7 @@
 ## 6) Preventing Drift, Duplication, Low-Quality Output
 
 ### Drift prevention
-1. **Weekly alignment**: review BACKLOG.md + plan-astraNotes.prompt.md side-by-side
+1. **Weekly alignment**: review `planning/backlog.md` + `plans/plan-astraNotes.prompt.md` side-by-side
    - confirm sprint items still match architecture
    - flag any scope creep (new features = new backlog item + estimation)
 2. **Requirement traceability**: every test/code PR links to FR/NFR/SEC requirement
@@ -201,7 +201,7 @@
    - Security review flags = escalate to peer/human
    - Performance miss (e.g., >150ms) = mark as debt, create follow-up ticket
 2. **Regeneration limit**: if AI output needs >2 iterations to pass gates, pause and design manually
-3. **Log failures**: add `REJECTED.md` for outputs that didn't make cut (learn from mis-prompts)
+3. **Log failures**: add `plans/REJECTED.md` for outputs that didn't make cut (learn from mis-prompts)
 
 ---
 
@@ -210,8 +210,8 @@
 ### Monday 9:00
 - **Sprint planning** (15 min async or sync)
 - Review last sprint: what shipped, what blocked, lessons
-- Pick 3-5 items from BACKLOG for this week
-- Record in BACKLOG.md with owner initials
+- Pick 3-5 items from `planning/backlog.md` for this week
+- Record in `planning/backlog.md` with owner initials
 
 ### Tue-Thu
 - **Daily standby** (async): push code, PR reviews, test runs
@@ -264,7 +264,7 @@ Fix: Reframe as "NFR1: Reduce search response to < 150ms for 10k notes database"
 - [ ] Every class/method has javadoc explaining **why** (not just **what**)
 - [ ] Non-obvious logic has an inline comment referencing FR/NFR/SEC or design doc
 - [ ] Public API is documented with usage examples (at least one)
-- [ ] If cryptographic/security code: design decision logged in DECISIONS.md
+- [ ] If cryptographic/security code: design decision logged in `plans/DECISIONS.md`
 
 **Example of good design doc**:
 ```java
@@ -273,7 +273,7 @@ Fix: Reframe as "NFR1: Reduce search response to < 150ms for 10k notes database"
  * 
  * WHY SQLite: Single ACID transaction boundary, transparent encryption via SQLCipher,
  * no custom query layer needed. Supports FTS5 for full-text search without extra layer.
- * (See DECISIONS.md: "Use SQLCipher, not app-level encryption")
+ * (See plans/DECISIONS.md: "Use SQLite with application-level AES while SQLCipher remains optional")
  * 
  * @author jw
  * @see EncryptionManager for key lifecycle
@@ -360,7 +360,7 @@ try {
 - [ ] Test class name matches feature: `NoteRepositoryCreateTest` for FR1
 - [ ] Test method name references requirement: `testCreateNoteMeetsAcceptanceCriteriaFR1()`
 - [ ] Git commit references requirement: `[test] Add NoteRepositoryCreateTest — FR1 acceptance`
-- [ ] BACKLOG.md links test to DONE status
+- [ ] `planning/backlog.md` links test to DONE status
 
 **Example of traceable test**:
 ```java
@@ -392,7 +392,7 @@ public void testCreateNoteReturnsIdAndStoresInDatabase() {
 ### Part E: Security, Privacy & Governance (Are risks addressed?)
 
 **Security checklist** (STOP if any fail):
-- [ ] **Crypto**: No custom crypto code without peer review + DECISIONS.md entry
+- [ ] **Crypto**: No custom crypto code without peer review + `plans/DECISIONS.md` entry
 - [ ] **Secrets**: No password/key in code, logs, or error messages
 - [ ] **SQL injection**: All queries use prepared statements (no string concatenation)
 - [ ] **Integrity**: If data is encrypted, HMAC/signature is verified on every decrypt
@@ -401,10 +401,10 @@ public void testCreateNoteReturnsIdAndStoresInDatabase() {
 **Privacy checklist**:
 - [ ] **Logging**: Note content never logged; metadata-only (IDs, counts, timings)
 - [ ] **Caches**: In-memory decrypted data is cleared after use or on lock
-- [ ] **Exports**: Export files are plaintext; user must consent to unencrypted copy
+- [ ] **Exports**: Export files are treated as sensitive; if any plaintext content is exported, user consent and documentation are required
 
 **Governance checklist**:
-- [ ] **Schema changes**: Migration script added to `migrations/` + version incremented
+- [ ] **Schema changes**: Migration note added to `plans/DECISIONS.md` or a future `migrations/` folder + version incremented
 - [ ] **Breaking changes**: Decision log entry explaining why change is necessary
 - [ ] **Audit trail**: Git commit message explains decision + rationale
 - [ ] **Backward compat**: Old code paths gracefully upgrade or reject old data
@@ -447,7 +447,7 @@ logger.info("Created note with content: {}", body);
 - [ ] Traceability logged (git commit + test name + BACKLOG update)
 - [ ] Security/privacy/governance concerns addressed or escalated
 - [ ] Code review approved (peer sign-off within 24h)
-- [ ] BACKLOG.md marked DONE + cycle time recorded
+- [ ] `planning/backlog.md` marked DONE + cycle time recorded
 
 **Go/No-Go decision**:
 
@@ -506,7 +506,7 @@ STATUS: ✅ GO — MERGE TO MAIN
 4. Cycle time > 1 week without approval
 
 **Manual escalation** (ask peer/mentor):
-1. Design decision that contradicts DECISIONS.md
+1. Design decision that contradicts `plans/DECISIONS.md`
 2. Performance misses NFR by > 20% (e.g., 200ms instead of 150ms)
 3. Complex merge conflict involving multiple features
 4. Unclear if contribution aligns with MVP scope
@@ -521,7 +521,7 @@ A feature is **DONE** when:
 2. **It is defensible** — design documented, logic explained, decision logged
 3. **It is quality** — compiles cleanly, no secrets, no warnings, peer-reviewed
 4. **It is tested** — ≥ 80% coverage, happy + error paths, perf/security tests as needed
-5. **It is traceable** — git commit + test name + BACKLOG update all linked
+5. **It is traceable** — git commit + test name + backlog update all linked
 6. **It is safe** — security/privacy/governance concerns addressed or escalated
 
 **and you can confidently answer "yes" to:**
@@ -547,7 +547,27 @@ If blocked:
 2. **Test fails**: debug locally, add test case to prevent repeat, push to PR
 3. **Performance misses NFR**: log as debt item (`DEBT.md`), mark as "future optimization", move on
 4. **Security concern**: STOP, manual review + design doc, escalate to decision log
-5. **Scope creep**: add to BACKLOG with "v2" tag, do not interrupt current sprint
+5. **Scope creep**: add to `planning/backlog.md` with "v2" tag, do not interrupt current sprint
+
+---
+
+## 11) Lab 2.1 AstraNotes Trial
+
+### Future task tested against the Working Agreement
+Future task: **implement secure export/import for AstraNotes notes**.
+
+The Working Agreement helps manage this task because it forces the work to map to FR8 and the privacy/governance requirements before implementation starts. The task must define measurable acceptance criteria, such as exporting selected notes, importing them into a fresh database, verifying checksum integrity, and avoiding unapproved plaintext note leakage. It also requires unit or integration tests before the item can move to DONE.
+
+### AI-generated artifact tested against the Definition of Done
+Artifact reviewed: **AI-assisted refined requirement baseline** in `planning/refined-requirement-baseline.md`.
+
+The Definition of Done would mostly accept this artifact because it is aligned to AstraNotes, separates functional, non-functional, and security requirements, and includes acceptance-style language. It is not perfect yet: the requirement baseline mentions SQLCipher as the preferred database encryption approach, while the current implementation mainly uses application-level AES-GCM with optional SQLCipher support. Under the DoD, that contradiction must be logged as a decision or follow-up before the artifact is treated as final.
+
+### Workflow gap identified
+The main gap is **artifact path consistency and traceability setup**. Earlier versions of this agreement referenced `plans/BACKLOG.md`, `DECISIONS.md`, and `prompts/library.md`, but the actual backlog is stored in `planning/backlog.md`. The decision log and prompt library have now been created as `plans/DECISIONS.md` and `prompts/library.md`, and they must be maintained as real project artifacts. If this is not kept consistent, future work could be tracked in multiple places or lose the prompt/decision history needed to defend the work.
+
+### How these decisions help AstraNotes over the quarter
+These decisions turn AI-assisted development into a controlled project workflow instead of a loose set of prompts. AstraNotes has security, privacy, performance, and traceability requirements, so the project needs rules that force each task to connect back to requirements, tests, design reasoning, and governance. This agreement keeps AI useful for speed while making the student responsible for review, explanation, and final acceptance.
 
 ---
 

@@ -7,140 +7,183 @@ This document contains five coordinated UML views of the AstraNotes system: clas
 
 ## 1) Class Diagram
 
-```
-package model {
+```mermaid
+classDiagram
   class Note {
-    id: String (UUID)
-    title: String
-    body: String (encrypted blob)
-    tags: List<String>
-    notebook: String
-    createdAt: Instant
-    updatedAt: Instant
-    version: Integer
-    deleted: Boolean
-    hmac: byte[]
-    
-    + getId(): String
-    + getTitle(): String
-    + setTitle(String): void
-    + getBody(): String
-    + setBody(String): void
-    + getTags(): List<String>
-    + getVersion(): Integer
+    -String id
+    -String title
+    -String body
+    -List~String~ tags
+    -String notebook
+    -Instant createdAt
+    -Instant updatedAt
+    -int version
+    -boolean deleted
+    -byte[] hmac
+    +Note(title, body, tags, notebook)
+    +Note(id, title, body, tags, notebook, createdAt, updatedAt, version, deleted, hmac)
+    +getId() String
+    +getTitle() String
+    +getBody() String
+    +getTags() List~String~
+    +getNotebook() String
+    +getCreatedAt() Instant
+    +getUpdatedAt() Instant
+    +getVersion() int
+    +isDeleted() boolean
+    +setTitle(title) void
+    +setBody(body) void
+    +setTags(tags) void
+    +markDeleted() void
   }
-}
 
-package storage {
-  interface NoteRepository {
-    + create(title, body, tags, notebook): String
-    + get(id): Optional<Note>
-    + update(id, title, body, tags): boolean
-    + delete(id): boolean
-    + list(offset, limit): List<Note>
-    + search(query, offset, limit): List<Note>
+  class NoteRepository {
+    <<interface>>
+    +create(title, body, tags, notebook) String
+    +get(id) Optional~Note~
+    +update(id, title, body, tags) boolean
+    +delete(id) boolean
+    +list(offset, limit) List~Note~
+    +search(query, offset, limit) List~Note~
+    +purge(id) boolean
+    +purgeDeletedNotes() int
   }
-  
-  class SQLiteNoteStorage implements NoteRepository {
-    - dbPath: String
-    - connection: Connection
-    - encryptionManager: EncryptionManager
-    
-    + create(title, body, tags, notebook): String
-    + get(id): Optional<Note>
-    + update(id, title, body, tags): boolean
-    + delete(id): boolean
-    + list(offset, limit): List<Note>
-    + search(query, offset, limit): List<Note>
-    - executeQuery(sql, params): ResultSet
-    - persistNote(note): void
-  }
-  
-  class MigrationManager {
-    - currentVersion: Integer
-    - migrations: List<Migration>
-    
-    + migrate(connection): boolean
-    + validate(): boolean
-  }
-}
 
-package encryption {
+  class SQLiteNoteStorage {
+    -String dbPath
+    -EncryptionManager encryptionManager
+    -PluginManager pluginManager
+    -Connection connection
+    +initialize() void
+    +create(title, body, tags, notebook) String
+    +get(id) Optional~Note~
+    +update(id, title, body, tags) boolean
+    +delete(id) boolean
+    +list(offset, limit) List~Note~
+    +search(query, offset, limit) List~Note~
+    +purge(id) boolean
+    +purgeDeletedNotes() int
+    +importNoteFull(note) void
+    +close() void
+    -createSchema() void
+    -migrateSchema() void
+    -reconstructNote(rs) Note
+    -updateFtsIndex(noteId, title, body, tags, notebook) void
+  }
+
   class EncryptionManager {
-    - rootKey: byte[]
-    - keyStore: KeyStore
-    
-    + unlock(password): boolean
-    + lock(): void
-    + encrypt(plaintext): byte[]
-    + decrypt(ciphertext): byte[]
-    + computeHMAC(noteId, body): byte[]
-    + verifyHMAC(noteId, body, hmac): boolean
+    -SecretKey rootKey
+    -boolean unlocked
+    +unlock(password) boolean
+    +lock() void
+    +encrypt(plaintext) byte[]
+    +decrypt(ciphertext) String
+    +computeHMAC(noteId, body) byte[]
+    +verifyHMAC(noteId, body, expectedHmac) boolean
+    +isUnlocked() boolean
+    +getRootKeyHex() String
   }
-}
 
-package plugin {
-  interface PluginContext {
-    + getNoteService(): NoteRepository
-    + getMetadataService(): MetadataService
-  }
-  
-  class PluginManager {
-    - plugins: Map<String, PluginInstance>
-    - pluginContext: PluginContext
-    
-    + loadPlugin(jar): boolean
-    + onNoteCreated(noteId): void
-    + onNoteUpdated(noteId): void
-    + onNoteDeleted(noteId): void
-    + onSearch(query): void
-  }
-  
-  interface ITrustedPlugin {
-    + initialize(context): void
-    + onNoteCreated(note): void
-    + onNoteUpdated(note): void
-    + onNoteDeleted(noteId): void
-    + shutdown(): void
-  }
-}
-
-package indexing {
-  class FTS5SearchIndex {
-    - ftsTableName: String = "fts_notes"
-    
-    + indexNote(note): void
-    + removeNote(noteId): void
-    + search(query, limit, offset): List<SearchResult>
-  }
-}
-
-package io {
   class ExportImportService {
-    - storage: NoteRepository
-    
-    + exportNotes(noteIds, format): File
-    + importNotes(file): List<Note>
+    -SQLiteNoteStorage storage
+    -EncryptionManager encryptionManager
+    -Gson gson
+    +exportNotes(noteIds, outFile) void
+    +importFromFile(inFile, createNewIds) Map~String,String~
+    -computeChecksum(payload) String
   }
-}
 
-// Relationships
-NoteRepository <-- SQLiteNoteStorage
-SQLiteNoteStorage --> EncryptionManager : uses
-SQLiteNoteStorage --> MigrationManager : uses
-SQLiteNoteStorage --> FTS5SearchIndex : uses
-PluginManager --> PluginContext : manages
-PluginManager --> ITrustedPlugin : invokes
-ExportImportService --> NoteRepository : uses
-ExportImportService --> EncryptionManager : uses
+  class PluginManager {
+    -List~ITrustedPlugin~ plugins
+    -PluginStateStore pluginStateStore
+    +addPlugin(plugin) void
+    +setPluginStateStore(store) void
+    +getPluginState(pluginId, stateKey) Optional~String~
+    +savePluginState(pluginId, stateKey, stateValue) boolean
+    +notifyBeforeCreate(note) boolean
+    +notifyAfterUpdate(note) void
+    +notifyBeforeDelete(id) boolean
+    +notifyOnSearch(query) String
+  }
+
+  class ITrustedPlugin {
+    <<interface>>
+    +beforeCreate(note) boolean
+    +afterUpdate(note) void
+    +beforeDelete(noteId) boolean
+    +onSearch(query) String
+  }
+
+  class PluginStateStore {
+    -Connection connection
+    +saveState(pluginId, key, value) void
+    +getState(pluginId, key) Optional~String~
+  }
+
+  class AstraNotesApp {
+    -EncryptionManager encryptionManager
+    -SQLiteNoteStorage storage
+    -MainPanel mainPanel
+    +launch() void
+    -initializeEncryption() void
+    -initializeStorage() void
+    -createMenuBar() JMenuBar
+    -shutdown() void
+  }
+
+  class MainPanel {
+    -SQLiteNoteStorage storage
+    -NoteListPanel noteListPanel
+    -NoteDetailPanel noteDetailPanel
+    +openCreateNoteDialog() void
+    +refresh() void
+    +openSettingsPanel() void
+  }
+
+  class NoteListPanel
+  class NoteDetailPanel
+  class NoteCreateDialog
+
+  NoteRepository <|.. SQLiteNoteStorage
+  ITrustedPlugin <.. PluginManager : invokes
+  AstraNotesApp *-- EncryptionManager : owns
+  AstraNotesApp *-- SQLiteNoteStorage : owns
+  AstraNotesApp *-- MainPanel : owns UI shell
+  MainPanel --> SQLiteNoteStorage : uses
+  MainPanel *-- NoteListPanel : contains
+  MainPanel *-- NoteDetailPanel : contains
+  MainPanel ..> NoteCreateDialog : opens
+  SQLiteNoteStorage --> EncryptionManager : encrypts and verifies
+  SQLiteNoteStorage --> PluginManager : optional lifecycle hooks
+  SQLiteNoteStorage ..> Note : creates and reconstructs
+  SQLiteNoteStorage o-- PluginStateStore : configures when plugins exist
+  ExportImportService --> SQLiteNoteStorage : imports and exports notes
+  ExportImportService --> EncryptionManager : protects bundle content
+  PluginStateStore --> Connection : persists plugin state
 ```
 
-**Key design principles:**
-- `NoteRepository` is the main interface; `SQLiteNoteStorage` implements it.
-- `EncryptionManager` handles all encryption/decryption and HMAC operations.
-- `PluginManager` receives events from storage and invokes plugin hooks.
-- `FTS5SearchIndex` handles full-text indexing and search.
-- `MigrationManager` handles schema versioning and migrations.
+### Week 4.1 Structural Rationale
+
+This class diagram is intentionally close to the current Java implementation. It avoids adding speculative classes just to make the diagram look larger. FTS5 indexing and schema migration are currently responsibilities inside `SQLiteNoteStorage`, so they are shown as private methods rather than separate classes.
+
+**Attributes and visibility**
+- Private fields (`-`) protect invariants such as `Note.version`, `Note.deleted`, `EncryptionManager.rootKey`, and the SQLite `Connection`.
+- Public methods (`+`) expose only the operations needed by the rest of the system, such as CRUD/search on `NoteRepository` and encrypt/decrypt/HMAC methods on `EncryptionManager`.
+- Private helper methods in `SQLiteNoteStorage` show implementation responsibilities without exposing database internals to UI or plugin code.
+
+**Association, composition, and inheritance**
+- `SQLiteNoteStorage` realizes `NoteRepository`; this is the main inheritance/implementation relationship and keeps storage replaceable.
+- `AstraNotesApp` composes `EncryptionManager`, `SQLiteNoteStorage`, and `MainPanel` because it creates and owns the application shell objects for the process lifetime.
+- `MainPanel` composes `NoteListPanel` and `NoteDetailPanel` because those panels are part of the UI layout.
+- `SQLiteNoteStorage` associates with `EncryptionManager` because storage delegates encryption and HMAC verification instead of implementing cryptography itself.
+- `PluginManager` depends on `ITrustedPlugin` through an interface so trusted plugin behavior can vary without changing storage code.
+- `ExportImportService` associates with storage and encryption because export/import is an application service built on existing persistence and crypto behavior.
+
+**Why this structure fits AstraNotes**
+- The design separates domain model, persistence, encryption, plugins, import/export, and UI responsibilities.
+- The central dependency direction is UI -> storage -> encryption/database, which keeps UI code away from SQL and crypto internals.
+- Security-sensitive logic is concentrated in `EncryptionManager` and `SQLiteNoteStorage`, making it easier to test and review.
+- The diagram supports current requirements without fake complexity and still leaves room to split out future classes such as `MigrationManager` or `SearchIndex` if the implementation grows.
 
 ---
 
@@ -151,7 +194,7 @@ object appContext {
   encryptionManager : EncryptionManager
   noteStorage : SQLiteNoteStorage
   pluginManager : PluginManager
-  ftsIndex : FTS5SearchIndex
+  exportImportService : ExportImportService
 }
 
 object noteInstance1 : Note {
@@ -172,22 +215,23 @@ object noteInstance2 : Note {
   hmac = [32 bytes]
 }
 
-object searchResult1 {
-  noteId = "550e8400-e29b-41d4-a716-446655440000"
-  snippet = "Meeting at 3pm..."
-  rank = 1.5
+object pluginState1 {
+  pluginId = "trusted-review-plugin"
+  stateKey = "lastSearch"
+  stateValue = "meeting"
 }
 
 appContext.noteStorage --> noteInstance1
 appContext.noteStorage --> noteInstance2
-appContext.ftsIndex --> searchResult1
+appContext.pluginManager --> pluginState1
 appContext.encryptionManager --> noteInstance1 : encrypts/decrypts
 ```
 
 **Interpretation:**
 - At runtime, one `appContext` manages a single `SQLiteNoteStorage` and `EncryptionManager`.
 - Multiple `Note` objects exist in the storage, with `version` and `deleted` flags.
-- `FTS5SearchIndex` maintains search results indexed by `noteId`.
+- Search indexing is currently managed inside `SQLiteNoteStorage` through the `notes_fts` table.
+- Plugin state is stored separately from note rows through `PluginStateStore`.
 
 ---
 
@@ -308,38 +352,36 @@ start
 artifact astranotes.jar {
   component {
     "note.jar" (model.Note)
-    "storage.jar" (SQLiteNoteStorage, MigrationManager)
+    "storage.jar" (NoteRepository, SQLiteNoteStorage)
     "encryption.jar" (EncryptionManager)
-    "plugin.jar" (PluginManager, ITrustedPlugin)
-    "indexing.jar" (FTS5SearchIndex)
+    "plugin.jar" (PluginManager, ITrustedPlugin, PluginStateStore)
     "io.jar" (ExportImportService)
+    "ui.jar" (AstraNotesApp, MainPanel, NoteListPanel, NoteDetailPanel)
   }
 }
 
 database sqlite_db {
-  "astranotes.db" (encrypted with SQLCipher)
+  "astranotes.db" (SQLite DB; note bodies encrypted with AES-GCM, optional SQLCipher hardening)
 }
 
 node UserDesktop {
   device macOS {
     astranotes.jar --> sqlite_db : CRUD + encrypt/decrypt
-    astranotes.jar --> Keychain : unlock vault
+    astranotes.jar --> password-based KDF : unlock vault
   }
   
   device Windows {
     astranotes.jar --> sqlite_db : CRUD + encrypt/decrypt
-    astranotes.jar --> DPAPI : unlock vault
+    astranotes.jar --> password-based KDF : unlock vault
   }
   
   device Linux {
     astranotes.jar --> sqlite_db : CRUD + encrypt/decrypt
-    astranotes.jar --> libsecret : unlock vault
+    astranotes.jar --> password-based KDF : unlock vault
   }
 }
 
-note on macOS : Use Keychain for secure key storage
-note on Windows : Use DPAPI for secure key storage
-note on Linux : Use libsecret fallback or password-based KDF
+note on desktop : Current implementation derives an AES key from an unlock password; platform key storage is a future hardening option
 
 filesystem {
   "~/.astranotes/config" : App config
@@ -352,8 +394,8 @@ astranotes.jar --> filesystem : Read/write local files
 
 **Deployment architecture:**
 - Single monolithic JAR deployed on user's desktop.
-- Encrypted SQLite DB stored in standard platform directories.
-- Platform-specific key storage: Keychain (macOS), DPAPI (Windows), libsecret (Linux).
+- SQLite DB stored in a local application directory.
+- Current implementation protects note bodies with AES-GCM and HMAC; SQLCipher/full DB encryption is an optional hardening path.
 - No network dependencies; fully offline.
 
 ---
@@ -376,7 +418,7 @@ The **deployment diagram** shows where and how the system runs: as a JAR on the 
 - **Object → Deployment**: Runtime objects persist to the SQLite DB on the user's desktop, encrypted and indexed.
 
 ### Design Alignment
-- **Encryption-first**: every view emphasizes encryption (class: `EncryptionManager`, activity: "Encrypt body", deployment: "SQLCipher DB").
+- **Encryption-first**: every view emphasizes encryption (class: `EncryptionManager`, activity: "Encrypt body", deployment: protected note bodies with optional SQLCipher hardening).
 - **Plugin-aware**: use cases and activities include plugin hooks; class diagram shows `PluginManager` and `ITrustedPlugin`.
 - **Offline-only**: no network components in deployment; all storage is local.
 - **Version and audit**: every view reflects versioning (class: `version` field, activity: "Increment Version", object: version instances).

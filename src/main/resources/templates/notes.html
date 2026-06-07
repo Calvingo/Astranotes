@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AstraNotes</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">A</div>
+            <div>
+                <h1>AstraNotes</h1>
+                <p>Secure notes workspace</p>
+            </div>
+        </div>
+
+        <nav class="nav">
+            <a class="active" th:href="@{/notes}">Notes</a>
+            <a th:href="@{/profile}">Profile</a>
+            <a th:href="@{/settings}">Settings</a>
+        </nav>
+
+        <div class="user-chip">
+            <span th:text="${currentUser.displayName}">Demo User</span>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit">Sign out</button>
+            </form>
+        </div>
+
+        <form class="search" th:action="@{/notes}" method="get">
+            <input type="search" name="q" th:value="${query}" placeholder="Search notes">
+            <button type="submit">Search</button>
+        </form>
+
+        <a class="primary-action" th:href="@{/notes/new}">New Note</a>
+
+        <div class="note-list">
+            <a th:each="note : ${notes}"
+               th:href="@{/notes/{id}(id=${note.id}, q=${query})}"
+               th:classappend="${selectedNote != null and selectedNote.id == note.id} ? ' selected' : ''"
+               class="note-list-item">
+                <strong th:text="${note.title}">Note title</strong>
+                <span th:text="${note.notebook}">Notebook</span>
+            </a>
+            <p class="empty-list" th:if="${#lists.isEmpty(notes)}">No notes match this view.</p>
+        </div>
+    </aside>
+
+    <main class="workspace">
+        <div th:if="${message}" class="banner success" th:text="${message}"></div>
+        <div th:if="${error}" class="banner error" th:text="${error}"></div>
+
+        <section th:if="${selectedNote != null}" class="note-view">
+            <div class="note-toolbar">
+                <div>
+                    <p class="eyebrow" th:text="${selectedNote.notebook}">Notebook</p>
+                    <h2 th:text="${selectedNote.title}">Selected note</h2>
+                </div>
+                <div class="toolbar-actions">
+                    <a th:if="${isOwner}" class="button secondary" th:href="@{/notes/{id}/edit(id=${selectedNote.id})}">Edit</a>
+                    <form th:action="@{/notes/{id}/delete(id=${selectedNote.id})}" method="post">
+                        <button th:if="${isOwner}" class="button danger" type="submit">Delete</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="meta-row">
+                <span>Version <strong th:text="${selectedNote.version}">1</strong></span>
+                <span th:text="${#temporals.format(selectedNote.updatedAt, 'MMM d, yyyy HH:mm')}">Updated</span>
+            </div>
+
+            <div class="tag-row">
+                <span th:each="tag : ${selectedNote.tags}" th:text="${tag}">tag</span>
+            </div>
+
+            <article class="note-body" th:text="${selectedNote.body}">Body</article>
+
+            <section th:if="${isOwner}" class="share-panel">
+                <div>
+                    <h3>Sharing</h3>
+                    <p>Share read-only access with another demo user.</p>
+                </div>
+                <form th:action="@{/notes/{id}/share(id=${selectedNote.id})}" method="post" class="share-form">
+                    <select name="targetUserId" required>
+                        <option value="">Choose user</option>
+                        <option th:each="user : ${shareTargets}" th:value="${user.id}" th:text="${user.displayName}">User</option>
+                    </select>
+                    <button class="button primary" type="submit">Share</button>
+                </form>
+                <div class="shared-list" th:if="${!#lists.isEmpty(sharedUsers)}">
+                    <span th:each="userId : ${sharedUsers}">
+                        <span th:text="${userId}">user</span>
+                        <form th:action="@{/notes/{id}/share/remove(id=${selectedNote.id})}" method="post">
+                            <input type="hidden" name="targetUserId" th:value="${userId}">
+                            <button type="submit">Remove</button>
+                        </form>
+                    </span>
+                </div>
+            </section>
+
+            <section th:if="${!isOwner}" class="share-panel readonly">
+                <h3>Shared note</h3>
+                <p>You can read this note because the owner shared it with you. Editing and deletion are owner-only.</p>
+            </section>
+        </section>
+
+        <section th:if="${selectedNote == null}" class="empty-state">
+            <h2>Create your first note</h2>
+            <p>Use the notes workspace to create, search, edit, export, and delete encrypted notes.</p>
+            <a class="button primary" th:href="@{/notes/new}">New Note</a>
+        </section>
+    </main>
+</div>
+</body>
+</html>

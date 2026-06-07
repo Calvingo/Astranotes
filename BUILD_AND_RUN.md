@@ -35,7 +35,7 @@ astraNotes_v1/
 
 ## Prerequisites
 
-- **Java 15+** (OpenJDK or Oracle JDK) - Required for text blocks
+- **Java 17** (OpenJDK or Oracle JDK) - Matches the Maven compiler target
 - **Maven 3.6+** (for building)
 - **Git** (for version control)
 
@@ -48,7 +48,7 @@ brew install maven
 ### Verify Installation
 
 ```bash
-java -version  # Should be Java 15 or higher
+java -version  # Should be Java 17 or higher
 mvn -version
 ```
 
@@ -245,7 +245,7 @@ Create `.vscode/launch.json` for testing:
 ## Performance Notes
 
 - **Database**: SQLite with FTS5 for full-text search
-- **Encryption**: AES-256 with SHA-256 HMAC
+- **Encryption**: AES-GCM with HMAC integrity checks
 - **Search Performance**: ~150ms for 10k notes (target: REQ-NFR-1)
 - **Memory**: Typical usage ~100MB with 1k notes in memory
 

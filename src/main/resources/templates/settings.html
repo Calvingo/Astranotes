@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - AstraNotes</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="center-shell">
+    <header class="topbar">
+        <a th:href="@{/notes}" class="back-link">Back to notes</a>
+        <div>
+            <h1>Settings</h1>
+            <p th:text="${'Signed in as ' + currentUser.displayName}">Demo configuration.</p>
+        </div>
+    </header>
+
+    <div th:if="${message}" class="banner success" th:text="${message}"></div>
+    <div th:if="${error}" class="banner error" th:text="${error}"></div>
+
+    <section class="settings-panel">
+        <div class="setting-row">
+            <div>
+                <h2>Encryption</h2>
+                <p>Note bodies are encrypted with AES/GCM and verified with HMAC in storage.</p>
+            </div>
+            <strong th:text="${encrypted} ? 'Unlocked for demo' : 'Locked'">Unlocked</strong>
+        </div>
+
+        <div class="setting-row">
+            <div>
+                <h2>Export notes</h2>
+                <p>Download all active notes as an AstraNotes JSON bundle.</p>
+            </div>
+            <a class="button secondary" th:href="@{/export}">Export JSON</a>
+        </div>
+
+        <div class="setting-row">
+            <div>
+                <h2>Import notes</h2>
+                <p>Import an AstraNotes JSON bundle. Imported notes receive new IDs.</p>
+            </div>
+            <form class="import-form" th:action="@{/import}" method="post" enctype="multipart/form-data">
+                <input type="file" name="file" accept="application/json,.json">
+                <button class="button primary" type="submit">Import</button>
+            </form>
+        </div>
+    </section>
+</div>
+</body>
+</html>

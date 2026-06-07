@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - AstraNotes</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="center-shell">
+    <header class="topbar">
+        <a th:href="@{/notes}" class="back-link">Back to notes</a>
+        <div>
+            <h1>Demo Profile</h1>
+            <p th:text="${currentUser.displayName + ' signed in as ' + currentUser.id}">Class demo identity.</p>
+        </div>
+    </header>
+
+    <section class="info-grid">
+        <div class="info-tile">
+            <span>Name</span>
+            <strong th:text="${currentUser.displayName}">Demo Student</strong>
+        </div>
+        <div class="info-tile">
+            <span>Scope</span>
+            <strong>Multi-user demo</strong>
+        </div>
+        <div class="info-tile">
+            <span>Active notes</span>
+            <strong th:text="${noteCount}">0</strong>
+        </div>
+    </section>
+
+    <form th:action="@{/logout}" method="post" class="logout-block">
+        <button class="button secondary" type="submit">Sign out</button>
+    </form>
+</div>
+</body>
+</html>

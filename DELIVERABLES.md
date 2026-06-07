@@ -6,7 +6,7 @@
 
 **Required**: Programming language and desktop/web decision  
 **Provided**: 
-- **Language**: Java 11+
+- **Language**: Java 17
 - **Type**: Desktop (Swing GUI)
 - **Platform**: Cross-platform (macOS, Windows, Linux)
 
@@ -59,7 +59,7 @@ Help → About
 - **Dialogs**: Create Note (modal form), Settings (info panel)
 
 #### Features
-- ✓ Profile info (stored in default notebook dropdown)
+- ✓ Profile placeholder (notebook context + settings panel; full user profile is future scope)
 - ✓ Settings panel (database location, encryption status)
 - ✓ Notes workspace (list + detail view)
 - ✓ Create dialog with title, body, tags, notebook fields
@@ -89,13 +89,13 @@ Help → About
 
 **What it does**:
 1. User enters title, body, tags, notebook
-2. Encryption manager encrypts body (AES-256)
+2. Encryption manager encrypts body (AES-GCM)
 3. HMAC computed for integrity
 4. Inserted into SQLite with auto-incremented version=1
 5. FTS5 index updated
 6. Note ID returned to user
 
-#### Slice 2: Retrieve and List Notes (REQ-2, REQ-3, REQ-4)
+#### Slice 2: Retrieve, List, and Soft-Delete Notes (REQ-2, REQ-4)
 **File**: `src/main/java/com/astraNotes/storage/SQLiteNoteStorage.java` (lines 110-180)  
 **UI**: `src/main/java/com/astraNotes/ui/NoteListPanel.java`, `NoteDetailPanel.java`  
 **Test**: `SQLiteNoteStorageTest::testReadNote`, `testCreateAndList`, `testSoftDelete`  
@@ -124,10 +124,10 @@ Help → About
 |--------|--------|---|
 | REQ-1 | ✓ | `SQLiteNoteStorage.create()` |
 | REQ-2 | ✓ | `SQLiteNoteStorage.get()` + `NoteDetailPanel` |
-| REQ-3 | ✓ | `Note.setTitle()`, version increment |
+| REQ-3 | Partial | Storage-level `SQLiteNoteStorage.update()` exists and is tested; edit UI is future work |
 | REQ-4 | ✓ | `SQLiteNoteStorage.delete()` (soft-delete) |
 | REQ-6 | ✓ | SQLite local-only, no network |
-| REQ-SEC-1 | ✓ | `EncryptionManager.encrypt()` (AES-256) |
+| REQ-SEC-1 | ✓ | `EncryptionManager.encrypt()` (AES-GCM) |
 | REQ-SEC-2 | ✓ | `EncryptionManager.computeHMAC()` |
 | REQ-SEC-3 | ✓ | `EncryptionManager.unlock(password)` |
 | REQ-SEC-4 | ✓ | SQLite transactions with commit/rollback |
@@ -183,7 +183,7 @@ $ mvn clean compile
 [INFO] BUILD SUCCESS
 
 $ mvn test
-[INFO] Tests run: 8, Failures: 0, Errors: 0
+[INFO] Tests run: 19, Failures: 0, Errors: 0
 [INFO] BUILD SUCCESS
 
 $ mvn package
@@ -196,8 +196,10 @@ $ mvn package
 | Test Class | Tests | Purpose |
 |---|---|---|
 | NoteTest | 4 | Domain model behavior |
-| SQLiteNoteStorageTest | 6 | CRUD operations + search |
-| **Total** | **10** | **100% of first 2 slices** |
+| SQLiteNoteStorageTest | 7 | CRUD operations + search |
+| SQLiteNoteStorageIntegrationTest | 7 | End-to-end storage, export/import, purge, HMAC, plugin state |
+| SearchPerformanceTest | 1 | Search benchmark |
+| **Total** | **19** | **Coverage for Week 6 slices plus later storage hardening** |
 
 ---
 
@@ -244,7 +246,7 @@ java -jar target/astraNotes-0.1.0.jar
 ### Step 4: Run Tests
 ```bash
 mvn test
-# All 10 tests pass, demonstrating both slices work
+# All 19 tests pass, demonstrating the initial slices and storage hardening work
 ```
 
 ### Step 5: Review Code
@@ -262,10 +264,10 @@ mvn test
 
 ## What's NOT Included (for Week 7)
 
-❌ REQ-5: Full-text search (FTS5 schema ready, not performance-tested)  
-❌ REQ-7: Plugin hooks (interface defined, lifecycle not wired)  
-❌ REQ-8: Export/import (structure ready, not implemented)  
-❌ REQ-SEC-5: Schema migrations (MigrationManager skeleton)  
+✓ REQ-5: Full-text search implemented and benchmarked on current test dataset  
+✓ REQ-7: Plugin hooks and plugin state persistence implemented at storage/service level  
+✓ REQ-8: Export/import implemented and integration-tested  
+⚠ GOV-1: Schema version table exists; multi-version migration scripts are future work  
 ❌ Performance testing (100k notes)  
 ❌ Cross-platform testing (Windows/Linux)  
 
@@ -278,13 +280,13 @@ mvn test
 **What Was Built**:
 - ✓ Maven-based Java project with proper structure
 - ✓ 7 main components + 5 UI panels = ~1500 LOC
-- ✓ 10 passing tests covering both slices
-- ✓ SQLite database with AES-256 encryption
+- ✓ 19 passing tests covering slices and storage hardening
+- ✓ SQLite database with AES-GCM note-body encryption
 - ✓ Full menu/dialog/list UI
 - ✓ Comprehensive documentation
 
 **Traceability**:
-- ✓ REQ-1, REQ-2, REQ-3, REQ-4, REQ-6 fully implemented
+- ✓ REQ-1, REQ-2, REQ-4, REQ-5, REQ-6 implemented; REQ-3 storage update implemented but edit UI remains future work
 - ✓ REQ-SEC-1, SEC-2, SEC-3, SEC-4 fully implemented
 - ✓ User Stories 1-4 completed (Story 5 partial)
 - ✓ All implementations linked to code in docstrings
@@ -304,4 +306,3 @@ mvn test
 ---
 
 **Next**: Submit [SUBMISSION_WEEK6.md](SUBMISSION_WEEK6.md) as primary deliverable.
-
