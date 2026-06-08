@@ -1,5 +1,7 @@
 # Week 6 AstraNotes Development - Quick Start
 
+> Historical artifact: this Week 6 quick start documents the initial Java Swing realization slice. The final project evolved into a Spring Boot web demo with login, ownership, sharing, and browser workflows. Use [README.md](README.md) for final run instructions and [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) for the complete SDLC package map.
+
 ## What's in This Repository
 
 This is a **Java desktop application** for secure offline-first note-taking built during Week 6 of the AstraNotes lab.

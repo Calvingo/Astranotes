@@ -59,7 +59,7 @@ This file records architecture and governance decisions that affect implementati
 
 **Date**: 2026-06-06
 
-**Context**: Week 6.2 states that the default planning baseline for AstraNotes is a web-based, multi-user application unless another direction is documented and justified. The current implementation is a Java Swing desktop prototype, which proves core storage and encryption behavior but does not satisfy the web multi-user direction.
+**Context**: Week 6.2 states that the default planning baseline for AstraNotes is a web-based, multi-user application unless another direction is documented and justified. At the time of this decision, the implementation was a Java Swing desktop prototype that proved core storage and encryption behavior but did not yet satisfy the web multi-user direction.
 
 **Options**:
 - Continue as desktop single-user
@@ -70,6 +70,6 @@ This file records architecture and governance decisions that affect implementati
 
 **Reasoning**: The web track aligns with the course handout, supports user accounts and browser workflows, and creates a clearer path for future architecture, tests, and deployment artifacts. It also allows reuse of current Java backend logic while replacing the Swing UI layer.
 
-**Trade-offs**: Requirements, UML, backlog, traceability, and build/run documentation must be updated over time. Authentication, user ownership, web routes, and web tests must be added before the project can honestly claim multi-user web support.
+**Trade-offs**: Requirements, UML, backlog, traceability, and build/run documentation must be updated over time. Authentication, user ownership, web routes, and web tests were required before the project could honestly claim multi-user web support.
 
-**Status**: Accepted as the forward direction. The current Swing implementation remains prototype evidence for early backend slices.
+**Status**: Accepted and implemented for the final demo. The project now includes Spring Boot controllers, Thymeleaf views, demo login/session handling, per-user ownership, read-only sharing, service tests, and controller tests. The Swing implementation remains prototype evidence for early backend slices.

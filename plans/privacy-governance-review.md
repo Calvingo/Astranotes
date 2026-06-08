@@ -1,6 +1,8 @@
 # AstraNotes Governance and Ethics Review Memo
 
-This memo reviews AstraNotes as if it may be released into a real desktop environment. The goal is to identify privacy, AI-use, licensing, dependency, and governance risks early enough that they can shape implementation decisions.
+This memo reviews AstraNotes as if it may be released into a real environment. The goal is to identify privacy, AI-use, licensing, dependency, and governance risks early enough that they can shape implementation decisions.
+
+> Final project update: AstraNotes is now a Spring Boot web demo with demo login, server-side sessions, per-user note ownership, and read-only sharing. The governance risks below still apply because note content and metadata remain sensitive. Production-grade authentication, password hashing, hosted deployment, dependency scanning, and full database encryption remain future hardening items.
 
 ## Part 1: Privacy and PII Review
 
@@ -109,7 +111,7 @@ This memo reviews AstraNotes as if it may be released into a real desktop enviro
 - **Governance risk**: plugin hooks, import/export, deletion, and encryption assumptions can drift if decisions are not logged.
 
 ### Assumptions that must be explicit
-- AstraNotes is a local-first desktop application, not a cloud service.
+- AstraNotes is a local Spring Boot web demo for class presentation, not a hosted production cloud service.
 - Users may write sensitive content even if the app does not ask for PII.
 - Current baseline encryption protects note body content through application-level AES-GCM; full database encryption is optional unless required later.
 - Plugins are trusted/audited extensions, not untrusted sandboxed marketplace plugins.

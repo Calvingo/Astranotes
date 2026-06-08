@@ -4,6 +4,8 @@
 **Developer**: Week 6 Lab Student  
 **Project**: AstraNotes v0.1.0
 
+> Historical artifact: Week 6.1 captured the first implementation slice, which was a Java Swing prototype backed by SQLite and encryption. The final project direction is now the Spring Boot web demo documented in [README.md](README.md), with ownership and sharing added after the Week 6 baseline.
+
 ---
 
 ## 1. Development Direction

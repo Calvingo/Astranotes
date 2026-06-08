@@ -1,8 +1,10 @@
 # AstraNotes Week 7.1 Architecture Quality and MVC Memo
 
+> Final project update: this Week 7.1 memo originally evaluated the Swing prototype and recommended a Web MVC direction. The final demo now implements that direction with Spring Boot controllers, `NoteService`, `AuthService`, DTO/form objects, Thymeleaf views, server-side sessions, ownership checks, and read-only sharing.
+
 ## Purpose
 
-This memo reviews the current AstraNotes implementation through MVC-style responsibility separation. The current codebase is a Java Swing prototype from Week 6.1, while the forward direction selected in Week 6.2 is a web-based, multi-user AstraNotes application. This memo evaluates both:
+This memo reviews the AstraNotes implementation through MVC-style responsibility separation. At the time of the Week 7.1 review, the codebase was a Java Swing prototype from Week 6.1, while the forward direction selected in Week 6.2 was a web-based, multi-user AstraNotes application. This memo evaluates both:
 
 - the current prototype structure
 - the target MVC direction for the future web implementation
@@ -132,9 +134,9 @@ I rejected these possible overcorrections:
 
 ## Human Judgment
 
-The current code is maintainable enough for a Week 6 prototype because the core model, storage, encryption, and UI are separated. It is not yet maintainable enough for the selected Web MVC direction because request handling, user ownership, and controller/service boundaries are missing.
+At the time of Week 7.1, the code was maintainable enough for a Week 6 prototype because the core model, storage, encryption, and UI were separated. It was not yet maintainable enough for the selected Web MVC direction because request handling, user ownership, and controller/service boundaries were missing.
 
-The correct next step is not to rewrite everything. The better path is:
+The correct path was not to rewrite everything. The better path was:
 
 1. Preserve tested backend logic.
 2. Add a `NoteService` layer.
@@ -144,4 +146,4 @@ The correct next step is not to rewrite everything. The better path is:
 
 ## Summary
 
-AstraNotes currently follows a rough MVC-like pattern, but it is closer to a layered Swing prototype than a clean MVC application. The model and storage responsibilities are clear, but controller behavior is mixed into UI classes. For the chosen web-based, multi-user path, AstraNotes should evolve toward Web MVC: model, repository, service, controller, DTO, and browser view layers. This keeps the project realistic while improving separation of concerns and maintainability.
+AstraNotes began with a rough MVC-like Swing prototype, then evolved into the final Spring Boot Web MVC demo. The final architecture now has a clearer model, storage, service, controller, DTO/form, and browser-view separation. This keeps the project realistic while improving separation of concerns and maintainability for the chosen web-based, multi-user path.

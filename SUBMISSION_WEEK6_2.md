@@ -4,6 +4,8 @@
 **Week focus**: Quality in development, scope-track decision, and repo/workflow readiness  
 **Chosen primary scope track**: Web-based, multi-user application
 
+> Final status update: the web-based multi-user direction selected in this Week 6.2 audit has now been implemented as a Spring Boot web demo. The final app includes login/session handling, per-user ownership, read-only sharing, web controllers, Thymeleaf views, service tests, and controller tests. The earlier Swing implementation remains useful historical evidence for the first backend slices.
+
 ---
 
 ## 1. Scope Track Decision

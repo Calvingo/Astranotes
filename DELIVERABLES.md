@@ -1,5 +1,7 @@
 # Week 6 AstraNotes Development - Deliverables Checklist
 
+> Historical artifact: this file records the Week 6.1 development deliverables for the original Swing prototype. The final defense package now uses the Spring Boot web demo and the consolidated evidence map in [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md). Items marked as future work here may have been completed later in the quarter.
+
 ## Submission Requirements vs. Deliverables
 
 ### ✓ 1. Development Direction
@@ -275,7 +277,9 @@ mvn test
 
 ## Summary
 
-**Status**: ✓ READY FOR WEEK 6 REVIEW  
+**Historical Week 6 Status**: ✓ READY FOR WEEK 6 REVIEW
+
+**Final Project Status Update**: the later Spring Boot web demo now adds browser-based create, edit, delete, search, profile/settings, export/import, login/session handling, per-user ownership, and read-only sharing.
 
 **What Was Built**:
 - ✓ Maven-based Java project with proper structure
@@ -286,7 +290,8 @@ mvn test
 - ✓ Comprehensive documentation
 
 **Traceability**:
-- ✓ REQ-1, REQ-2, REQ-4, REQ-5, REQ-6 implemented; REQ-3 storage update implemented but edit UI remains future work
+- ✓ Week 6 prototype: REQ-1, REQ-2, REQ-4, REQ-5, REQ-6 implemented; REQ-3 storage update implemented at the backend layer
+- ✓ Final web demo: create, edit, delete, list, search, share, export, and import workflows implemented in the browser UI
 - ✓ REQ-SEC-1, SEC-2, SEC-3, SEC-4 fully implemented
 - ✓ User Stories 1-4 completed (Story 5 partial)
 - ✓ All implementations linked to code in docstrings

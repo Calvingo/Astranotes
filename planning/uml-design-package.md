@@ -348,6 +348,8 @@ start
 
 ## 5) Deployment Diagram
 
+> Final implementation note: the original UML package modeled the local desktop prototype. The final demo keeps the same domain, storage, encryption, search, and export/import foundation, but runs as a Spring Boot Web MVC application with browser views, session-based demo login, per-user note ownership, and read-only sharing. The desktop deployment diagram below is retained as historical Week 4/5 design evidence; the final web deployment addendum follows it.
+
 ```
 artifact astranotes.jar {
   component {
@@ -397,6 +399,62 @@ astranotes.jar --> filesystem : Read/write local files
 - SQLite DB stored in a local application directory.
 - Current implementation protects note bodies with AES-GCM and HMAC; SQLCipher/full DB encryption is an optional hardening path.
 - No network dependencies; fully offline.
+
+---
+
+## 6) Final Web MVC Implementation Addendum
+
+The final AstraNotes demo uses Web MVC while preserving the tested core model and storage design.
+
+### Final Class-Level Mapping
+
+```mermaid
+classDiagram
+    class AstraNotesWebApplication
+    class AstraNotesWebConfig
+    class AuthController
+    class NoteWebController
+    class NoteForm
+    class AuthService
+    class DemoUser
+    class NoteService
+    class SQLiteNoteStorage
+    class EncryptionManager
+    class Note
+
+    AstraNotesWebApplication --> AstraNotesWebConfig
+    AuthController --> AuthService
+    NoteWebController --> AuthService
+    NoteWebController --> NoteService
+    NoteWebController --> NoteForm
+    NoteService --> SQLiteNoteStorage
+    SQLiteNoteStorage --> EncryptionManager
+    SQLiteNoteStorage --> Note
+    AuthService --> DemoUser
+```
+
+### Final Deployment View
+
+```mermaid
+flowchart LR
+    Browser["User browser"] --> WebApp["Spring Boot Web App"]
+    WebApp --> Controllers["AuthController / NoteWebController"]
+    Controllers --> Services["AuthService / NoteService"]
+    Services --> Storage["SQLiteNoteStorage"]
+    Storage --> Crypto["EncryptionManager"]
+    Storage --> Database["./data/web-notes.db"]
+    WebApp --> Templates["Thymeleaf templates + app.css"]
+```
+
+### Final Design Rationale
+
+- `AuthController` owns login/logout routing and session setup.
+- `NoteWebController` owns browser routes for list, detail, create, edit, delete, share, search, export, import, profile, and settings.
+- `AuthService` defines the demo user set used for class presentation.
+- `NoteService` protects the application boundary with validation, owner checks, read-only sharing rules, and export/import coordination.
+- `SQLiteNoteStorage` remains the persistence foundation and now supports `owner_id` and `note_shares`.
+- Thymeleaf templates are the View layer; they do not directly access SQLite.
+- The final deployment is local web demo deployment, not hosted production deployment.
 
 ---
 

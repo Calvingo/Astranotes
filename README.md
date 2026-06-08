@@ -2,6 +2,8 @@
 
 AstraNotes is now a runnable Spring Boot web application for a secure note-taking demo. It keeps the original SQLite, AES/GCM encryption, HMAC integrity, FTS search, export/import, and JUnit test foundation, then adds a browser-based notes workspace.
 
+For the final SDLC package and weekly artifact map, see [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md).
+
 ## Quick Start
 
 ```bash
@@ -103,4 +105,4 @@ ASTRANOTES_DEMO_PASSWORD="your-demo-password" mvn spring-boot:run
 
 ## Known Limits
 
-This is a class-demo web application, not a production release. Real multi-user authentication, note ownership, sharing permissions, and hosted deployment are still future work.
+This is a class-demo web application, not a production release. Demo login, server-side sessions, per-user note ownership, and read-only sharing permissions are implemented. Production-grade account registration, password hashing, course roster integration, hosted deployment, automated dependency scanning, and full browser automation remain future work.

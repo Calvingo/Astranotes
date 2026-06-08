@@ -138,8 +138,8 @@ Conclusion:
 
 Remaining meaningful gaps:
 
-- controller-level tests for login redirects and logout
-- route-level test that shared users cannot access `/notes/{id}/edit`
+- full browser automation for the login, share, read-only, and export/import demo paths
+- controller coverage for import ownership and settings actions
 - import ownership behavior for multi-user mode
 - search empty query and punctuation-heavy query behavior
 - wrong unlock password or locked encryption manager behavior
@@ -183,4 +183,4 @@ AI helped critique the test set by pointing out:
 
 ## Summary
 
-The strongest Week 9 improvement is that AstraNotes now has executable tests for validation and multi-user authorization. The suite still needs controller-level tests, but it already verifies the most important service/security rule: a shared user can read a note but cannot edit or delete the owner's note.
+The strongest Week 9 improvement is that AstraNotes now has executable tests for validation, multi-user authorization, and controller-level access behavior. The next important gap is full browser automation, but the current suite already verifies the most important service/security rule: a shared user can read a note but cannot edit or delete the owner's note.

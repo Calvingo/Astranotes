@@ -1,5 +1,31 @@
 # AstraNotes Development - Build and Run Guide
 
+> Final project note: this file began as the Week 6 desktop prototype build guide. The final demo is now the Spring Boot web application described in [README.md](README.md) and [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md). The Swing sections below are retained as historical prototype documentation.
+
+## Final Web Demo Quick Start
+
+```bash
+cd /Users/jw/Documents/scu/AstraNotes_v1
+mvn test
+mvn spring-boot:run
+```
+
+Open:
+
+```text
+http://127.0.0.1:8080/login
+```
+
+Demo users:
+
+| User | Password |
+| --- | --- |
+| `alex` | `alex123` |
+| `morgan` | `morgan123` |
+| `taylor` | `taylor123` |
+
+The final web workflow supports login/logout, note creation, search, edit/delete by owner, read-only sharing, profile/settings pages, and JSON export/import.
+
 ## Project Structure
 
 ```
